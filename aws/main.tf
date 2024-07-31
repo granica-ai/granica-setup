@@ -1,49 +1,3 @@
-# Can we try this today?
-# Bring up Cluster in a private network:
-# Create an instance in default private subnet.
-# Connect to that instance using "EC2 Instance Connect Endpoint"
-# From that EC2 instance create admin server.
-# From this admin server create Crunch
-# As Chetan mentioned:
-# All instances are running in private subnet, no public IP
-# All instances have tags imds=secure Worst case hard code the tag name. Value can be input
-# Ability to change mem allocated to pods from KRY
-# Private dashboards...how do we do that?
-# EKS 1.29
-
-# data "aws_vpc" "default" {
-#   # default = true
-#   id = "vpc-0241943159d4073e8"
-# }
-
-
-# data "aws_subnet_ids" "private" {
-#   vpc_id = data.aws_vpc.default.id
-
-#   # Assuming private subnets are tagged as such; adjust tag as necessary
-#   tags = {
-#     "Tier" = "Private"
-#   }
-# }
-
-# data "aws_subnet" "private_subnets" {
-#   for_each = data.aws_subnet_ids.private.ids
-
-#   id = each.value
-# }
-
-# output "default_vpc_id" {
-#   value = data.aws_vpc.default.id
-# }
-
-# output "private_subnet_ids" {
-#   value = data.aws_subnet.private_subnets[*].id
-# }
-
-# output "private_subnet_cidr_blocks" {
-#   value = data.aws_subnet.private_subnets[*].cidr_block
-# }
-
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.7.1"
@@ -141,21 +95,6 @@ data "aws_ami" "al2023" {
   }
 }
 
-data "aws_ami" "amazon_linux_2" {
-  most_recent = true
-  owners      = ["amazon"]
-
-  filter {
-    name   = "name"
-    values = ["amzn2-ami-hvm*"]
-  }
-
-  filter {
-    name   = "architecture"
-    values = ["x86_64"]
-  }
-}
-
 resource "aws_instance" "admin_server" {
   depends_on = [
     aws_ec2_instance_connect_endpoint.main,
@@ -197,10 +136,10 @@ success=false
 while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
   echo "Trying yum install of dependencies"
   yum update -y
-  yum -y install jq git libxcrypt-compat cronie cronie-anacron wget
+  yum -y install jq git libxcrypt-compat cronie cronie-anacron wget openssl-devel readline-devel ncurses-c++-libs ncurses-devel sqlite sqlite-devel tk tk-devel gcc glib2-devel glibc-devel glibc-headers
   # Check the exit code of the command
   if [ $? -eq 0 ]; then
-    echo "Yum update and instal of dependencies succeeded"
+    echo "Yum update and install of dependencies succeeded"
     success=true
   else
     echo "Attempt $attempt_num failed. Sleeping for 5 seconds and trying again..."
@@ -211,10 +150,9 @@ done
 
 echo "Place resource ids at /home/ec2-user/config.tfvars"
 echo "vpc_id = \"${module.vpc.vpc_id}\"" > /home/ec2-user/config.tfvars
-echo "private_subnet_ids = ${jsonencode(module.vpc.private_subnets)}" >> /home/ec2-user/config.tfvars
-echo "public_subnet_ids = ${jsonencode(module.vpc.public_subnets)}" >> /home/ec2-user/config.tfvars
+echo 'private_subnet_ids = ${jsonencode(module.vpc.private_subnets)}' >> /home/ec2-user/config.tfvars
+echo 'public_subnet_ids = ${jsonencode(module.vpc.public_subnets)}' >> /home/ec2-user/config.tfvars
 chown ec2-user:ec2-user /home/ec2-user/config.tfvars
-
 
 max_attempts=5
 attempt_num=1
@@ -222,7 +160,7 @@ success=false
 while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
   echo "Trying download of Granica rpm"
   wget --directory-prefix=/home/ec2-user ${var.package_url}
-  # yum -y install ${var.package_url}
+  yum -y install ${var.package_url}
   # Check the exit code of the command
   if [ $? -eq 0 ]; then
     echo "Yum install succeeded"
@@ -233,10 +171,6 @@ while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
     ((attempt_num++))
   fi
 done
-
-sudo git clone https://github.com/ahmetb/kubectx /opt/kubectx
-sudo ln -s /opt/kubectx/kubectx /usr/local/bin/kubectx
-sudo ln -s /opt/kubectx/kubens /usr/local/bin/kubens
 
 echo 'export PATH=~/.local/bin:$PATH' >> /home/ec2-user/.bash_profile && chown ec2-user /home/ec2-user/.bash_profile
 su ec2-user -c 'source ~/.bash_profile && aws configure set region ${var.aws_region}'
@@ -257,3 +191,4 @@ EOF
 output "admin_server_ec2_instance_connect_endpoint_connect_command" {
   value = "aws ec2-instance-connect ssh --instance-id ${aws_instance.admin_server.id} --connection-type eice --region ${var.aws_region}"
 }
+
