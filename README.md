@@ -1,6 +1,6 @@
 ## Granica Admin Server
 
-Build the Granica Admin Server.
+Create a VPC with subnets and a Granica Admin Server in the VPC.
 You can run this from AWS or Google Cloud Shell or from your laptop
 
 ## Getting Started
