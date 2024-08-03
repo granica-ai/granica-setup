@@ -28,11 +28,11 @@ Terraform v1.9.3 on linux_amd64
 3. Provide the following parameters in `backend.conf`
 ```bash
       bucket = <name of bucket that will host admin server tf state>
-      region = <region where Granica product will be installed>
+      region = <region of the tf state bucket>
 ```
 4. Provide values for the parameters in the `terraform.tfvars` file
 ```bash
-aws_region     = "region like us-east-1, or us-west-2, etc"
+aws_region     = "region like us-east-1, or us-west-2, etc" # where the product will be installed
 package_url    = "https://granica.ai/granica.rpm"
 ```
 5. Run the following
