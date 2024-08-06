@@ -5,9 +5,9 @@ module "vpc" {
   name = "granica-vpc"
   cidr = "${var.vpc_cidr_prefix}.0.0/16"
 
-  azs             = ["${var.aws_region}a", "${var.aws_region}b", "${var.aws_region}c"]
-  private_subnets = ["${var.vpc_cidr_prefix}.0.0/20", "${var.vpc_cidr_prefix}.16.0/20", "${var.vpc_cidr_prefix}.32.0/20"]
-  public_subnets  = ["${var.vpc_cidr_prefix}.48.0/20", "${var.vpc_cidr_prefix}.64.0/20", "${var.vpc_cidr_prefix}.80.0/20"]
+  azs             = ["${var.aws_region}a", "${var.aws_region}b"]
+  private_subnets = ["${var.vpc_cidr_prefix}.0.0/20", "${var.vpc_cidr_prefix}.16.0/20"]
+  public_subnets  = ["${var.vpc_cidr_prefix}.48.0/20", "${var.vpc_cidr_prefix}.64.0/20"]
 
   enable_nat_gateway      = true
   single_nat_gateway      = true
