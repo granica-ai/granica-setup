@@ -17,3 +17,9 @@ variable "manage_vpc" {
   type    = bool
   default = true
 }
+
+// Place admin-server in public subnet with a public IP
+variable "public_ip_enabled" {
+  type    = bool
+  default = false
+}

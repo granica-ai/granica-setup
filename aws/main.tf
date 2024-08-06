@@ -25,8 +25,7 @@ module "vpc" {
 }
 
 locals {
-  private_subnet_ids       = module.vpc.private_subnets
-  target_private_subnet_id = local.private_subnet_ids[0]
+  target_subnet_id = var.public_ip_enabled ? module.vpc.public_subnets[0] : module.vpc.private_subnets[0]
 }
 
 resource "aws_security_group" "ec2_instance_connect" {
@@ -47,7 +46,7 @@ resource "aws_ec2_instance_connect_endpoint" "main" {
   # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-using-eice.html#ec2-instance-connect-endpoint-limitations
   # this allows the instance we're connecting to be in the different VPC than the ec2 instance connect endpoint
   preserve_client_ip = false
-  subnet_id          = local.target_private_subnet_id
+  subnet_id          = local.target_subnet_id
   security_group_ids = [aws_security_group.ec2_instance_connect.id]
 }
 
@@ -73,6 +72,17 @@ resource "aws_security_group" "admin_server" {
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = [module.vpc.vpc_cidr_block]
+  }
+
+
+  dynamic "ingress" {
+    for_each = var.public_ip_enabled ? [1] : []
+    content {
+      from_port   = 22
+      to_port     = 22
+      protocol    = "tcp"
+      cidr_blocks = ["0.0.0.0/0"]
+    }
   }
 }
 
@@ -102,13 +112,13 @@ resource "aws_instance" "admin_server" {
   ]
   ami           = data.aws_ami.al2023.id
   instance_type = "t2.small"
-  subnet_id     = local.target_private_subnet_id
+  subnet_id     = local.target_subnet_id
 
   iam_instance_profile = aws_iam_instance_profile.admin.name
 
   vpc_security_group_ids = [aws_security_group.admin_server.id]
 
-  associate_public_ip_address = false
+  associate_public_ip_address = var.public_ip_enabled
 
   user_data = <<EOF
 #!/bin/bash
