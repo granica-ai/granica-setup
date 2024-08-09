@@ -8,9 +8,13 @@ If you are working in Cloud Shell you must be logged in as Admin. If you are run
 1. Enable GCP APIs
 ```bash
 $ gcloud services enable compute.googleapis.com
+$ gcloud services enable storage.googleapis.com
 $ gcloud services enable iam.googleapis.com
 $ gcloud services enable cloudresourcemanager.googleapis.com
 $ gcloud services enable networkmanagement.googleapis.com
+$ gcloud services enable container.googleapis.com
+$ gcloud services enable logging.googleapis.com
+$ gcloud services enable pubsub.googleapis.com
 ```
 
 2. Install Terraform on Cloud Shell or on your laptop
