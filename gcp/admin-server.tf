@@ -43,5 +43,5 @@ resource "google_compute_instance" "vm_instance" {
 }
 
 output "ssh_command" {
-  value = "gcloud compute ssh ${google_compute_instance.vm_instance.name} --zone ${google_compute_instance.vm_instance.zone}"
+  value = "gcloud compute ssh ${google_compute_instance.vm_instance.name} --zone ${google_compute_instance.vm_instance.zone} --tunnel-through-iap"
 }
