@@ -70,7 +70,9 @@ resource "google_project_iam_member" "project_permissions" {
     "roles/storage.admin",
     "roles/compute.admin",
     "roles/pubsub.admin",
-    "roles/iam.serviceAccountAdmin"
+    "roles/iam.serviceAccountAdmin",
+    "roles/iam.serviceAccountKeyAdmin",
+    "roles/iam.serviceAccountUser"
   ])
   role    = each.value
   project = var.project_id
