@@ -1,20 +1,19 @@
-## Granica Admin Server
+## Granica GCP Admin Server
 
-Create a VPC with subnets and a Granica Admin Server in the VPC.
-You can run this from AWS or Google Cloud Shell or from your laptop
-
-## Getting Started
-
-Please read the following instructions
-
-### Prerequisites for AWS
-
-
-If you are working out AWS Cloud Shell you must be logged in as Admin. If you are running from your laptop you will need AWS command line credentials that gives administrator access
+### Prerequisites
+If you are working in Cloud Shell you must be logged in as Admin. If you are running from your laptop you will need GCloud command line credentials that gives administrator access.
+- GCP Project
 
 ### Instructions
+1. Enable GCP APIs
+```bash
+$ gcloud services enable compute.googleapis.com
+$ gcloud services enable iam.googleapis.com
+$ gcloud services enable cloudresourcemanager.googleapis.com
+$ gcloud services enable networkmanagement.googleapis.com
+```
 
-1. Install Terraform from Cloud Shell or on your laptop
+1. Install Terraform on Cloud Shell or on your laptop
 ```bash
 $ git clone https://github.com/tfutils/tfenv.git ~/.tfenv
 $ mkdir ~/bin
