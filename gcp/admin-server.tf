@@ -11,9 +11,6 @@ resource "google_compute_instance" "vm_instance" {
 
   network_interface {
     subnetwork = google_compute_subnetwork.private_subnet_1.self_link
-    access_config {
-      nat_ip = google_compute_address.public_ip.address
-    }
   }
 
   service_account {
@@ -21,7 +18,7 @@ resource "google_compute_instance" "vm_instance" {
     scopes = ["https://www.googleapis.com/auth/cloud-platform"]
   }
 
-  tags = ["nat-access"]
+  tags = ["iap-access"]
 
   metadata_startup_script = <<-EOF
     #!/bin/bash
@@ -46,5 +43,5 @@ resource "google_compute_instance" "vm_instance" {
 }
 
 output "ssh_command" {
-  value = "gcloud compute ssh ${google_compute_instance.vm_instance.name} --zone ${google_compute_instance.vm_instance.zone}"
+  value = "gcloud compute ssh ${google_compute_instance.vm_instance.name} --zone ${google_compute_instance.vm_instance.zone} --tunnel-through-iap"
 }

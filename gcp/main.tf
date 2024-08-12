@@ -57,11 +57,6 @@ resource "google_compute_router_nat" "nat" {
   source_subnetwork_ip_ranges_to_nat = "ALL_SUBNETWORKS_ALL_IP_RANGES"
 }
 
-resource "google_compute_address" "public_ip" {
-  name   = "nat-access-ip"
-  region = var.region
-}
-
 resource "google_service_account" "vm_service_account" {
   account_id   = "admin-server-sa"
   display_name = "Granica Admin Server Service Account"
@@ -74,7 +69,10 @@ resource "google_project_iam_member" "project_permissions" {
     "roles/logging.configWriter",
     "roles/storage.admin",
     "roles/compute.admin",
-    "roles/pubsub.admin"
+    "roles/pubsub.admin",
+    "roles/iam.serviceAccountAdmin",
+    "roles/iam.serviceAccountKeyAdmin",
+    "roles/iam.serviceAccountUser"
   ])
   role    = each.value
   project = var.project_id
@@ -92,6 +90,5 @@ resource "google_compute_firewall" "allow_ingress_from_iap" {
   }
 
   source_ranges = ["35.235.240.0/20"]
-  target_tags   = ["nat-access"]
+  target_tags   = ["iap-access"]
 }
-
