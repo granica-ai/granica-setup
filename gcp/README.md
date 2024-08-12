@@ -50,3 +50,12 @@ package_url    = "https://granica.ai/granica.rpm"
 terraform init -backend-config=backend.conf
 terraform apply
 ```
+
+6. Login to the Admin Server
+```bash
+(Use the gcloud command output at the end of the terraform apply to ssh into the admin server)
+$ sudo su - granica # Use granica user to run granica commands
+# Check if the granica RPM has finished installation (tail -f /var/log/dnf.rpm.log)
+$ granica --help
+$ granica deploy --var-file config.tfvars
+```
