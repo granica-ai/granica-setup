@@ -7,5 +7,5 @@ output "scp_command_prefix" {
 }
 
 output "adminsrv_instance_name" {
-  value = google_compute_instance.adminsrv_instance.name
+  value = google_compute_instance.vm_instance.name
 }
