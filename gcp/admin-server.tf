@@ -1,5 +1,5 @@
 resource "google_compute_instance" "vm_instance" {
-  name         = "private-vm-instance"
+  name         = "granica-admin-server"
   machine_type = "e2-small"
   zone         = var.zone
 
@@ -40,8 +40,4 @@ resource "google_compute_instance" "vm_instance" {
     sudo yum -y install ${var.package_url} 2>> $log
 
   EOF
-}
-
-output "ssh_command" {
-  value = "gcloud compute ssh ${google_compute_instance.vm_instance.name} --zone ${google_compute_instance.vm_instance.zone} --tunnel-through-iap"
 }

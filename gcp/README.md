@@ -29,12 +29,12 @@ Terraform v1.9.3 on linux_amd64
 ```
 
 3. Create GCS Bucket that will host admin server terraform state
-   `gcloud storage bucket create <bucket-name> --location <region>`
+   `gcloud storage buckets create <bucket-name> --location <region>`
 
 4. Provide the following parameters in `backend.conf`
 ```bash
       bucket = <name of bucket that will host admin server tf state>
-      region = <region of the tf state bucket>
+      prefix = <prefix to store state>
 ```
 
 4. Provide values for the parameters in the `terraform.tfvars` file
