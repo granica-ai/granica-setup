@@ -50,6 +50,21 @@ resource "aws_ec2_instance_connect_endpoint" "main" {
   security_group_ids = [aws_security_group.ec2_instance_connect.id]
 }
 
+# Add an S3 VPC endpoint
+resource "aws_vpc_endpoint" "s3" {
+  vpc_id       = module.vpc.vpc_id
+  service_name = "com.amazonaws.${var.aws_region}.s3"
+  vpc_endpoint_type = "Gateway"
+
+  route_table_ids = concat(
+    module.vpc.public_route_table_ids,
+    module.vpc.private_route_table_ids
+  )
+  tags = {
+    Name = "granica-vpc-s3-endpoint"
+  }
+}
+
 resource "aws_security_group" "admin_server" {
   vpc_id = module.vpc.vpc_id
 
