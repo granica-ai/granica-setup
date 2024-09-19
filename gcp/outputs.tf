@@ -3,7 +3,7 @@ output "ssh_command" {
 }
 
 output "scp_command_prefix" {
-  value = "gcloud compute scp --zone ${google_compute_instance.vm_instance.zone} --tunnel-through-iap"
+  value = "gcloud compute scp ${google_compute_instance.vm_instance.name} --zone ${google_compute_instance.vm_instance.zone} --tunnel-through-iap"
 }
 
 output "adminsrv_instance_name" {
