@@ -216,4 +216,3 @@ EOF
 output "admin_server_ec2_instance_connect_endpoint_connect_command" {
   value = "aws ec2-instance-connect ssh --instance-id ${aws_instance.admin_server.id} --connection-type eice --region ${var.aws_region}"
 }
-

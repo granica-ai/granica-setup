@@ -1,5 +1,5 @@
 resource "google_compute_instance" "vm_instance" {
-  name         = "private-vm-instance"
+  name         = "granica-admin-server"
   machine_type = "e2-small"
   zone         = var.zone
 
@@ -26,7 +26,12 @@ resource "google_compute_instance" "vm_instance" {
     mkdir -p /home/${var.granica_username}/.project-n
     log="/home/${var.granica_username}/setup-log"
     echo "=== Setup log ===" > $log
-    useradd ${var.granica_username} 2>> $log
+    if id ${var.granica_username} &>/dev/null; then
+      echo "User exists" 2>> $log
+    else
+      echo "User does not exist, creating..." 2>> $log
+      useradd ${var.granica_username} 2>> $log
+    fi
     chown -R ${var.granica_username} /home/${var.granica_username} 2>> $log
     echo $(ls -la /home/${var.granica_username}) >> $log
     echo $(ls -la /home/${var.granica_username}/.project-n) >> $log
@@ -40,8 +45,4 @@ resource "google_compute_instance" "vm_instance" {
     sudo yum -y install ${var.package_url} 2>> $log
 
   EOF
-}
-
-output "ssh_command" {
-  value = "gcloud compute ssh ${google_compute_instance.vm_instance.name} --zone ${google_compute_instance.vm_instance.zone} --tunnel-through-iap"
 }
