@@ -16,13 +16,13 @@ If you are working out AWS Cloud Shell you must be logged in as Admin. If you ar
 
 1. Install Terraform from Cloud Shell or on your laptop
 ```bash
-$ git clone https://github.com/tfutils/tfenv.git ~/.tfenv
-$ mkdir ~/bin
-$ ln -s ~/.tfenv/bin/* ~/bin/
-$ tfenv install
-$ tfenv use 1.9.3
-$ terraform --version
-Terraform v1.9.3 on linux_amd64
+git clone https://github.com/tfutils/tfenv.git ~/.tfenv
+mkdir ~/bin
+ln -s ~/.tfenv/bin/* ~/bin/
+tfenv install
+tfenv use 1.9.3
+terraform --version
+#Terraform v1.9.3 on linux_amd64
 ```
 2. Create S3 Bucket that will host admin server terraform state
 3. Provide the following parameters in `backend.conf`
