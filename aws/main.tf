@@ -208,7 +208,7 @@ echo "Finish Granica user-data script"
 EOF
 
   tags = {
-    Name = "granica-admin-server"
+    Name = "granica-admin-server-${var.server_name}"
     imds = "secure"
   }
 }

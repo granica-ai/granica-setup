@@ -23,3 +23,9 @@ variable "public_ip_enabled" {
   type    = bool
   default = false
 }
+
+variable "server_name" {
+  description = "Suffix for the admin server instance name"
+  type        = string
+  default     = "dev"
+}

@@ -1,43 +1,51 @@
-## Granica Admin Server
+## Granica Admin Server Setup
 
-Create a VPC with subnets and a Granica Admin Server in the VPC.
-You can run this from AWS or Google Cloud Shell or from your laptop
+This guide will help you set up a Granica Admin Server with its VPC and subnets.
 
-## Getting Started
+### Prerequisites
 
-Please read the following instructions
+* AWS credentials with administrator access (either via AWS Cloud Shell or your local machine)
 
-### Prerequisites for AWS
+### Quick Start (Dev Mode)
 
-
-If you are working out AWS Cloud Shell you must be logged in as Admin. If you are running from your laptop you will need AWS command line credentials that gives administrator access
-
-### Instructions
-
-1. Install Terraform from Cloud Shell or on your laptop
+**1. Install Terraform**
 ```bash
-git clone https://github.com/tfutils/tfenv.git ~/.tfenv
-mkdir ~/bin
-ln -s ~/.tfenv/bin/* ~/bin/
-export PATH="$HOME/.tfenv/bin:$PATH"
-tfenv install
+curl -s https://raw.githubusercontent.com/tfutils/tfenv/master/install.sh | bash
+tfenv install 1.9.3
 tfenv use 1.9.3
-terraform --version
-#Terraform v1.9.3 on linux_amd64
 ```
-2. Create S3 Bucket that will host admin server terraform state
-3. Provide the following parameters in `backend.conf`
+
+**2. Configure Deployment**
+
+Edit `terraform.tfvars`:
+```hcl
+aws_region  = "your-region"              # Region where admin server will be deployed
+package_url = "https://granica.ai/granica.rpm"
+server_name = "my-server"                # Optional: suffix for admin server name (defaults to "dev")
+```
+
+**3. Deploy**
 ```bash
-      bucket = <name of bucket that will host admin server tf state>
-      region = <region of the tf state bucket>
+terraform init
+terraform apply
 ```
-4. Provide values for the parameters in the `terraform.tfvars` file
+
+Your admin server will be created with the name `granica-admin-server-{server_name}`.
+### Production Setup (Optional)
+
+For production deployments, it is essential to preserve the Terraform state (tfstate) for the admin server itself. This is achieved by creating a custom backend configuration file, `backend.conf`, which specifies the S3 bucket to store the Terraform state.
+
+**1. Create backend.conf**
+```hcl
+bucket = "your-terraform-state-bucket"    # S3 bucket to store Terraform state
+region = "your-state-bucket-region"       # Region where the S3 bucket is located
+key    = "your-cluster-key"              # Unique identifier for this deployment
+```
+
+**2. Deploy with Custom State Configuration**
 ```bash
-aws_region     = "region like us-east-1, or us-west-2, etc" # where the product will be installed
-package_url    = "https://granica.ai/granica.rpm"
-```
-5. Run the following
-```terraform
 terraform init -backend-config=backend.conf
 terraform apply
 ```
+
+By using this custom backend configuration, your admin server will be created with the name `granica-admin-server-{key}`, where `key` is the value specified in `backend.conf`. This approach ensures that the Terraform state is safely stored in the specified S3 bucket, allowing for easier management and versioning of your infrastructure deployments.
