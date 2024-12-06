@@ -19,6 +19,7 @@ If you are working out AWS Cloud Shell you must be logged in as Admin. If you ar
 git clone https://github.com/tfutils/tfenv.git ~/.tfenv
 mkdir ~/bin
 ln -s ~/.tfenv/bin/* ~/bin/
+export PATH="$HOME/.tfenv/bin:$PATH"
 tfenv install
 tfenv use 1.9.3
 terraform --version
