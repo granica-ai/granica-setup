@@ -4,7 +4,7 @@ This guide will help you set up a Granica Admin Server with its VPC and subnets.
 
 ### Prerequisites
 
-* AWS credentials with administrator access (either via AWS Cloud Shell or your local machine)
+* AWS credentials with administrator access (AWS Cloud Shell)
 * Git installed on your system
 
 ### Quick Start (Dev Mode)
@@ -33,11 +33,20 @@ server_name = "my-server"                # Optional: suffix for admin server nam
 
 **3. Deploy**
 ```bash
-terraform init
+terraform init -backend-config=backend.conf
 terraform apply
 ```
 
 Your admin server will be created with the name `granica-admin-server-{server_name}`.
+
+**4. Granica Setup**
+
+After the deployment, you can set up Granica by following these steps:
+
+- Go to the AWS EC2 console
+- Connect to the `granica-admin-server-{server_name}` instance
+- Run the command `granica deploy --var-file=config.tfvars`
+
 ### Production Setup (Optional)
 
 For production deployments, it is essential to preserve the Terraform state (tfstate) for the admin server itself. This is achieved by creating a custom backend configuration file, `backend.conf`, which specifies the S3 bucket to store the Terraform state.
