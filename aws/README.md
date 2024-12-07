@@ -14,6 +14,7 @@ This guide will help you set up a Granica Admin Server with its VPC and subnets.
 git clone https://github.com/tfutils/tfenv.git ~/.tfenv
 mkdir ~/bin
 ln -s ~/.tfenv/bin/* ~/bin/
+export PATH="$HOME/.tfenv/bin:$PATH"
 tfenv install
 tfenv use 1.9.3
 terraform --version
