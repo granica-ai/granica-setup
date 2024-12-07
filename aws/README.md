@@ -5,14 +5,20 @@ This guide will help you set up a Granica Admin Server with its VPC and subnets.
 ### Prerequisites
 
 * AWS credentials with administrator access (either via AWS Cloud Shell or your local machine)
+* Git installed on your system
 
 ### Quick Start (Dev Mode)
 
-**1. Install Terraform**
+**1. Install Terraform and Clone Granica Setup Repo**
 ```bash
-curl -s https://raw.githubusercontent.com/tfutils/tfenv/master/install.sh | bash
-tfenv install 1.9.3
+git clone https://github.com/tfutils/tfenv.git ~/.tfenv
+mkdir ~/bin
+ln -s ~/.tfenv/bin/* ~/bin/
+tfenv install
 tfenv use 1.9.3
+terraform --version
+git clone https://github.com/granica-ai/granica-setup.git
+cd granica-setup/aws
 ```
 
 **2. Configure Deployment**
