@@ -2,7 +2,7 @@ module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.7.1"
 
-  name = "granica-vpc"
+  name = "granica-vpc-${var.server_name}"
   cidr = "${var.vpc_cidr_prefix}.0.0/16"
 
   azs             = ["${var.aws_region}a", "${var.aws_region}b"]
@@ -15,12 +15,12 @@ module "vpc" {
   map_public_ip_on_launch = false
 
   public_subnet_tags = {
-    "Name" = "granica-vpc-public-subnet"
+    "Name" = "granica-vpc-${var.server_name}-public-subnet"
   }
 
   private_subnet_tags = {
     "kubernetes.io/role/internal-elb" = "1"
-    "Name"                            = "granica-vpc-private-subnet"
+    "Name"                            = "granica-vpc-${var.server_name}-private-subnet"
   }
 }
 
