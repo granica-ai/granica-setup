@@ -31,6 +31,13 @@ package_url = "https://granica.ai/granica.rpm"
 server_name = "my-server"                # Optional: suffix for admin server name (defaults to "dev")
 ```
 
+Edit `backend.conf` and change the key to a unique name to the admin server and tfstate:
+```hcl
+bucket = "kry-ci-granica-setup-terraform-state"
+region = "us-west-2"
+key    = "your-unique-key"              # Change this to a unique identifier for your deployment
+```
+
 **3. Deploy**
 ```bash
 terraform init -backend-config=backend.conf
