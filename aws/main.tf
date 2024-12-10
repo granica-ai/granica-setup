@@ -1,3 +1,8 @@
+# Add this data source to get all AZs in the region
+data "aws_availability_zones" "available" {
+  state = "available"
+}
+
 module "vpc" {
   source  = "terraform-aws-modules/vpc/aws"
   version = "5.7.1"
@@ -5,9 +10,10 @@ module "vpc" {
   name = "granica-vpc-${var.server_name}"
   cidr = "${var.vpc_cidr_prefix}.0.0/16"
 
-  azs             = ["${var.aws_region}a", "${var.aws_region}b"]
-  private_subnets = ["${var.vpc_cidr_prefix}.0.0/20", "${var.vpc_cidr_prefix}.16.0/20"]
-  public_subnets  = ["${var.vpc_cidr_prefix}.48.0/20", "${var.vpc_cidr_prefix}.64.0/20"]
+  # Use all available AZs in the region
+  azs             = data.aws_availability_zones.available.names
+  private_subnets = [for i, az in data.aws_availability_zones.available.names : "${var.vpc_cidr_prefix}.${i * 16}.0/20"]
+  public_subnets  = [for i, az in data.aws_availability_zones.available.names : "${var.vpc_cidr_prefix}.${(i + 4) * 16}.0/20"]
 
   enable_nat_gateway      = true
   single_nat_gateway      = true
