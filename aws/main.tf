@@ -8,12 +8,26 @@ module "vpc" {
   version = "5.7.1"
 
   name = "granica-vpc-${var.server_name}"
-  cidr = "${var.vpc_cidr_prefix}.0.0/16"
+  cidr = var.vpc_cidr
 
-  # Use all available AZs in the region
-  azs             = data.aws_availability_zones.available.names
-  private_subnets = [for i, az in data.aws_availability_zones.available.names : "${var.vpc_cidr_prefix}.${i * 16}.0/20"]
-  public_subnets  = [for i, az in data.aws_availability_zones.available.names : "${var.vpc_cidr_prefix}.${(i + 4) * 16}.0/20"]
+  # Number of AZs
+  # az_count = length(data.aws_availability_zones.available.names)
+   azs             = data.aws_availability_zones.available.names
+
+
+  # Derive private subnets
+  # cidrsubnet(base_cidr, new_bits, net_num)
+  # /16 with 4 new bits creates /20 subnets. net_num indexes which /20 segment is chosen.
+  private_subnets = [
+    for i in range(length(data.aws_availability_zones.available.names)) :
+    cidrsubnet(var.vpc_cidr, 4, i)
+  ]
+
+  # Derive public subnets (starting after the private ones to avoid overlap)
+  public_subnets = [
+    for i in range(length(data.aws_availability_zones.available.names)) :
+    cidrsubnet(var.vpc_cidr, 4, i + length(data.aws_availability_zones.available.names))
+  ]
 
   enable_nat_gateway      = true
   single_nat_gateway      = true
