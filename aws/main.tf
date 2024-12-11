@@ -121,12 +121,14 @@ resource "aws_security_group" "admin_server" {
   }
 }
 
+# TODO: Specify the exact AMI to use for now, as the latest AMI (al2023-ami-2023.6.20241121.0-kernel-6.1-x86_64) is not working for python ensurepip
 data "aws_ami" "al2023" {
   most_recent = true
 
   filter {
     name   = "name"
-    values = ["al2023-ami-2023*-kernel-*-x86_64"]
+    #values = ["al2023-ami-2023*-kernel-*-x86_64"]
+    values = ["al2023-ami-2023.6.20241121.0-kernel-6.1-x86_64"]
   }
 
   filter {
