@@ -38,7 +38,7 @@ region = "us-west-2"                    # Don't change. This is the region for t
 key    = "your-unique-key"              # Change this to a unique identifier for your deployment
 ```
 
-**Note: ** The `key` provided identifies your deployment and the state stored in the AWS bucket. You can use the same key to continue with a previously created deployment. If you use a previous key and want to start fresh then make sure that cleanup steps below have been completed.
+**Note:** The `key` provided identifies your deployment and the state stored in the AWS bucket. You can use the same key to continue with a previously created deployment. If you use a previous key and want to start fresh then make sure that cleanup steps below have been completed.
 
 **3. Deploy**
 ```bash
