@@ -24,14 +24,14 @@ cd granica-setup/aws
 
 **2. Configure Deployment**
 
-Edit `terraform.tfvars`:
+Create `terraform.tfvars` in this directory. A sample is provided in `terraform.tfvars.sample` as well as below:
 ```hcl
 aws_region  = "your-region"              # Region where admin server will be deployed
 package_url = "https://granica.ai/granica.rpm"
 server_name = "my-server"                # Optional: suffix for admin server name (defaults to "dev")
 ```
 
-Edit `backend.conf` and change the key to a unique name to the admin server and tfstate:
+Create `backend.conf` in this directory, making sure to set the key to a name unique to the admin server and tfstate. A sample is provided in `backend.conf.sample` and below:
 ```hcl
 bucket = "kry-ci-granica-setup-terraform-state"
 region = "us-west-2"
