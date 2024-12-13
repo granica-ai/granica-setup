@@ -1,6 +1,6 @@
 ## Granica Admin Server Setup
 
-This guide will help you set up a Granica Admin Server with its VPC and subnets.
+This guide will help you set up and destroy a Granica Admin Server with its VPC and subnets.
 
 ### Prerequisites
 
@@ -26,7 +26,7 @@ cd granica-setup/aws
 
 Create `terraform.tfvars` in this directory. A sample is provided in `terraform.tfvars.sample` as well as below:
 ```hcl
-aws_region  = "your-region"              # Region where admin server will be deployed
+aws_region  = "your-region"              # Region where admin server and Granica will be deployed. E.g. us-east-1.
 package_url = "https://granica.ai/granica.rpm"
 server_name = "my-server"                # Optional: suffix for admin server name (defaults to "dev")
 ```
@@ -34,9 +34,11 @@ server_name = "my-server"                # Optional: suffix for admin server nam
 Create `backend.conf` in this directory, making sure to set the key to a name unique to the admin server and tfstate. A sample is provided in `backend.conf.sample` and below:
 ```hcl
 bucket = "kry-ci-granica-setup-terraform-state"
-region = "us-west-2"
+region = "us-west-2"                    # Don't change. This is the region for the AWS bucket that contains the terraform state.
 key    = "your-unique-key"              # Change this to a unique identifier for your deployment
 ```
+
+**Note:** The `key` provided identifies your deployment and the state stored in the AWS bucket. You can use the same key to continue with a previously created deployment. If you use a previous key and want to start fresh then make sure that cleanup steps below have been completed.
 
 **3. Deploy**
 ```bash
@@ -62,7 +64,7 @@ For production deployments, it is essential to preserve the Terraform state (tfs
 ```hcl
 bucket = "your-terraform-state-bucket"    # S3 bucket to store Terraform state
 region = "your-state-bucket-region"       # Region where the S3 bucket is located
-key    = "your-cluster-key"              # Unique identifier for this deployment
+key    = "your-cluster-key"               # Unique identifier for this deployment
 ```
 
 **2. Deploy with Custom State Configuration**
@@ -72,3 +74,18 @@ terraform apply
 ```
 
 By using this custom backend configuration, your admin server will be created with the name `granica-admin-server-{key}`, where `key` is the value specified in `backend.conf`. This approach ensures that the Terraform state is safely stored in the specified S3 bucket, allowing for easier management and versioning of your infrastructure deployments.
+
+### Cleanup
+
+To destroy a deployment cleanup Granica / the admin server in the reverse order of the set up.
+**1. Granica Tear Down **
+
+- Go to the AWS EC2 console
+- Connect to the `granica-admin-server-{server_name}` instance
+- Run the command `granica teardown`
+
+**2. Admin Server Destroy**
+From the AWS Cloud Shell:
+```bash
+terraform destroy
+```
