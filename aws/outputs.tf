@@ -20,5 +20,5 @@ output "instance_id" {
 
 output "public_ip" {
   description = "The public IP address of the Admin Server EC2 instance"
-  value = var.public_ip_enabled ? aws_instance.admin_server.public_ip : "NOT_ENABLED"
+  value       = var.public_ip_enabled ? aws_instance.admin_server.public_ip : "NOT_ENABLED"
 }

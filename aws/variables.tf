@@ -1,10 +1,6 @@
 variable "aws_region" {
   description = "AWS region"
-}
-
-variable "vpc_cidr_prefix" {
-  description = "CIDR block for the VPC"
-  default     = "10.47"
+  type        = string
 }
 
 variable "package_url" {
@@ -31,7 +27,7 @@ variable "server_name" {
 }
 
 variable "vpc_cidr" {
-    type    = string
-    default = "10.47.0.0/16"
-    description = "The CIDR block for the VPC"
+  type        = string
+  default     = "10.47.0.0/16"
+  description = "The CIDR block for the VPC"
 }
