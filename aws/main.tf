@@ -10,11 +10,6 @@ module "vpc" {
   name = "granica-vpc-${var.server_name}"
   cidr = var.vpc_cidr
 
-  # Number of AZs
-  # az_count = length(data.aws_availability_zones.available.names)
-   azs             = data.aws_availability_zones.available.names
-
-
   # Derive private subnets
   # cidrsubnet(base_cidr, new_bits, net_num)
   # /16 with 4 new bits creates /20 subnets. net_num indexes which /20 segment is chosen.
@@ -72,8 +67,8 @@ resource "aws_ec2_instance_connect_endpoint" "main" {
 
 # Add an S3 VPC endpoint
 resource "aws_vpc_endpoint" "s3" {
-  vpc_id       = module.vpc.vpc_id
-  service_name = "com.amazonaws.${var.aws_region}.s3"
+  vpc_id            = module.vpc.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.s3"
   vpc_endpoint_type = "Gateway"
 
   route_table_ids = concat(
@@ -126,7 +121,7 @@ data "aws_ami" "al2023" {
   most_recent = true
 
   filter {
-    name   = "name"
+    name = "name"
     #values = ["al2023-ami-2023*-kernel-*-x86_64"]
     values = ["al2023-ami-2023.6.20241121.0-kernel-6.1-x86_64"]
   }
@@ -196,9 +191,11 @@ while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
 done
 
 echo "Place resource ids at /home/ec2-user/config.tfvars"
-echo "vpc_id = \"${module.vpc.vpc_id}\"" > /home/ec2-user/config.tfvars
+echo "vpc_id             = \"${module.vpc.vpc_id}\"" > /home/ec2-user/config.tfvars
 echo 'private_subnet_ids = ${jsonencode(module.vpc.private_subnets)}' >> /home/ec2-user/config.tfvars
-echo 'public_subnet_ids = ${jsonencode(module.vpc.public_subnets)}' >> /home/ec2-user/config.tfvars
+echo 'public_subnet_ids  = ${jsonencode(module.vpc.public_subnets)}' >> /home/ec2-user/config.tfvars
+echo 'subnet_az_ids      = ${jsonencode(data.aws_availability_zones.available.zone_ids)}' >> /home/ec2-user/config.tfvars
+echo 'multi_az           = true' >> /home/ec2-user/config.tfvars
 chown ec2-user:ec2-user /home/ec2-user/config.tfvars
 
 max_attempts=5
