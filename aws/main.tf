@@ -9,6 +9,7 @@ module "vpc" {
 
   name = "granica-vpc-${var.server_name}"
   cidr = var.vpc_cidr
+  azs  = data.aws_availability_zones.available.names
 
   # Derive private subnets
   # cidrsubnet(base_cidr, new_bits, net_num)
