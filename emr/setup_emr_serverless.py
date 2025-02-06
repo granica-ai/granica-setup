@@ -1,7 +1,8 @@
 import argparse
-import boto3
 import time
 import sys
+
+import boto3
 
 
 def wait_for_state_transition(
