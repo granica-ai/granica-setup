@@ -31,3 +31,9 @@ variable "vpc_cidr" {
   default     = "10.47.0.0/16"
   description = "The CIDR block for the VPC"
 }
+
+variable "user_names" {
+  description = "Names of the IAM users to create"
+  type        = list(string)
+  default     = ["FDE1_granica", "FDE2_granica"]
+}
