@@ -1,0 +1,4 @@
+# This is the admin server's Terraform state bucket and key
+bucket="kry-ci-granica-setup-terraform-state"
+region="us-west-2"
+key="kry-ci1"
