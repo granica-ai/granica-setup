@@ -8,7 +8,7 @@ NC='\033[0m' # No Color
 
 # Define directories
 CURRENT_DIR=$(pwd)
-FDE_WORKSPACE_DIR="/aws/mde/terraform-workspaces/fde"
+FDE_WORKSPACE_DIR="/home/terraform-workspaces/fde"
 
 echo -e "${YELLOW}Setting up FDE workspace...${NC}"
 
