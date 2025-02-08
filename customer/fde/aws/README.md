@@ -51,11 +51,8 @@ key    = "unique-key"  # Unique identifier for FDE users deployment
 
 Due to CloudShell storage limitations, we use a dedicated workspace:
 ```bash
-# Make the setup script executable
-chmod +x setup_workspace.sh
-
 # Run the setup script
-./setup_workspace.sh
+bash setup_workspace.sh
 ```
 
 **4. Deploy**
@@ -65,7 +62,6 @@ terraform init -backend-config=backend.conf
 terraform plan    # Review the changes
 terraform apply
 ```
-
 Your FDE users will be created with the following policies attached:
 - AWSCloudShellFullAccess
 - granica-lb
@@ -82,7 +78,7 @@ For production deployments, it is essential to preserve the Terraform state (tfs
 ```hcl
 bucket = "your-terraform-state-bucket"    # S3 bucket to store Terraform state
 region = "your-state-bucket-region"       # Region where the S3 bucket is located
-key    = "fde/iam-users/prod/terraform.tfstate"  # Unique identifier for production deployment
+key    = "unique-key"  # Unique identifier for production deployment
 ```
 
 **2. Deploy with Custom State Configuration**
@@ -105,3 +101,4 @@ terraform destroy
 ### Note
 
 The setup script creates a workspace in `/aws/mde/terraform-workspaces/fde` to avoid CloudShell storage limitations. The workspace is accessible via the symlink `~/fde-workspace`. This is necessary to prevent "no space left on device" errors during Terraform operations.
+
