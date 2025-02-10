@@ -40,9 +40,9 @@ aws_region = "us-east-1"                 # Region where users will be created
 
 Create `backend.conf` in this directory, making sure to set the key to a name unique to the FDE users and tfstate. A sample is provided in `backend.conf.sample` and below:
 ```hcl
-bucket = "your-terraform-state-bucket"
+bucket = "kry-ci-granica-setup-terraform-state"
 region = "us-west-2"                    # Region for the AWS bucket that contains the terraform state
-key    = "fde/iam-users/terraform.tfstate"  # Unique identifier for FDE users deployment
+key    = "unique-key"  # Unique identifier for FDE users deployment
 ```
 
 **Note:** The `key` provided identifies your deployment and the state stored in the AWS bucket. You can use the same key to continue with a previously created deployment. If you use a previous key and want to start fresh then make sure that cleanup steps below have been completed.
@@ -75,10 +75,3 @@ To destroy the FDE users and their permissions:
 ```bash
 terraform destroy
 ```
-
-**Note:** This should only be done when the FDE users no longer need access to deploy or manage admin servers.
-
-### Note
-
-The setup script creates a workspace in `/aws/mde/terraform-workspaces/fde` to avoid CloudShell storage limitations. The workspace is accessible via the symlink `~/fde-workspace`. This is necessary to prevent "no space left on device" errors during Terraform operations.
-
