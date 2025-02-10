@@ -4,7 +4,7 @@ This directory contains the Terraform configuration for setting up FDE users and
 
 ## FDE IAM Users Setup
 
-This guide will help you set up and manage FDE IAM users with required permissions in AWS.
+This guide will help you set up FDE IAM users with required permissions in AWS. This setup should be run from the admin account to create FDE users who will then be able to deploy the admin server in their own accounts.
 
 ### Prerequisites
 
@@ -40,28 +40,20 @@ aws_region = "us-east-1"                 # Region where users will be created
 
 Create `backend.conf` in this directory, making sure to set the key to a name unique to the FDE users and tfstate. A sample is provided in `backend.conf.sample` and below:
 ```hcl
-bucket = "kry-ci-granica-setup-terraform-state"
+bucket = "your-terraform-state-bucket"
 region = "us-west-2"                    # Region for the AWS bucket that contains the terraform state
-key    = "unique-key"  # Unique identifier for FDE users deployment
+key    = "fde/iam-users/terraform.tfstate"  # Unique identifier for FDE users deployment
 ```
 
 **Note:** The `key` provided identifies your deployment and the state stored in the AWS bucket. You can use the same key to continue with a previously created deployment. If you use a previous key and want to start fresh then make sure that cleanup steps below have been completed.
 
-**3. Setup Workspace**
-
-Due to CloudShell storage limitations, we use a dedicated workspace:
+**3. Deploy**
 ```bash
-# Run the setup script
-bash setup_workspace.sh
-```
-
-**4. Deploy**
-```bash
-cd ~/fde-workspace
 terraform init -backend-config=backend.conf
 terraform plan    # Review the changes
 terraform apply
 ```
+
 Your FDE users will be created with the following policies attached:
 - AWSCloudShellFullAccess
 - granica-lb
@@ -70,33 +62,21 @@ Your FDE users will be created with the following policies attached:
 - project-n-eks-addons-terraform
 - project-n-oidc-additional-terraform
 
-### Production Setup (Optional)
+### Next Steps
 
-For production deployments, it is essential to preserve the Terraform state (tfstate). The `backend.conf` configuration ensures the state is stored in an S3 bucket.
-
-**1. Create backend.conf**
-```hcl
-bucket = "your-terraform-state-bucket"    # S3 bucket to store Terraform state
-region = "your-state-bucket-region"       # Region where the S3 bucket is located
-key    = "unique-key"  # Unique identifier for production deployment
-```
-
-**2. Deploy with Custom State Configuration**
-```bash
-cd ~/fde-workspace
-terraform init -backend-config=backend.conf
-terraform apply
-```
-
-This approach ensures that the Terraform state is safely stored in the specified S3 bucket, allowing for easier management and versioning of your IAM user deployments.
+After the FDE users are created:
+1. Share the credentials with the FDE users
+2. FDE users can then log into their own AWS accounts
+3. FDE users can deploy the admin server using the main setup guide in their respective accounts
 
 ### Cleanup
 
-To destroy the deployment:
+To destroy the FDE users and their permissions:
 ```bash
-cd ~/fde-workspace
 terraform destroy
 ```
+
+**Note:** This should only be done when the FDE users no longer need access to deploy or manage admin servers.
 
 ### Note
 
