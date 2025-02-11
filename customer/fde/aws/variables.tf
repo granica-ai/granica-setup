@@ -3,8 +3,14 @@ variable "aws_region" {
   type        = string
 }
 
-variable "user_names" {
-  description = "Names of the IAM users to create"
+variable "operations_user_names" {
+  description = "Names of the Granica operations IAM users to create"
   type        = list(string)
-  default     = ["FDE1_granica", "FDE2_granica"]
+  default     = ["granica_fde_operations"]
+}
+
+variable "user_names" {
+  description = "Names of the Granica admin IAM user(s) to create"
+  type        = list(string)
+  default     = ["granica_fde_admin"]
 }
