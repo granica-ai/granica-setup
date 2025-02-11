@@ -1,19 +1,12 @@
 # Create IAM policies
-
-resource "aws_iam_policy" "operation_granica_fde_access" {
-  name        = "granica-operations-fde-access"
-  description = "Granica Load Balancer policy"
+resource "aws_iam_policy" "operation_fde_read" {
+  name        = "granica-fde-operations"
+  description = "Granica FDE operations"
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        Sid      = "AllowDescribeELBs"
-        Effect   = "Allow"
-        Action   = "elasticloadbalancing:Describe*"
-        Resource = "arn:aws:elasticloadbalancing:*:*:loadbalancer*"
-      },
-      {
-        "Sid" : "AllowEC2InstanceConnectForAllInstances",
+        "Sid" : "AllowEC2InstanceConnectEndpoint",
         "Effect" : "Allow",
         "Action" : "ec2-instance-connect:*",
         "Resource" : "arn:aws:ec2:*:*:instance-connect-endpoint*"
@@ -35,18 +28,7 @@ resource "aws_iam_policy" "operation_granica_fde_access" {
         "Effect" : "Allow",
         "Action" : "aws-portal:ViewBilling",
         "Resource" : "*"
-      }
-    ]
-  })
-}
-
-# Create remaining policies similarly
-resource "aws_iam_policy" "operation_fde_read" {
-  name        = "granica-operations-admin-read"
-  description = "Project N Admin Deploy policy"
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
+      },
       {
         "Action" : [
           "kms:ListResourceTags",
@@ -55,40 +37,21 @@ resource "aws_iam_policy" "operation_fde_read" {
           "kms:DescribeKey",
           "kms:CreateKey",
           "kms:CreateGrant",
-          ],
+        ],
         "Effect" : "Allow",
-        "Resource" : "arn:aws:kms:*",
+        "Resource" : "arn:aws:kms:*:*:*",
         "Sid" : "ReadKMSPermissions"
       },
       {
         "Action" : [
           "ec2:RunInstances",
           "ec2:GetLaunchTemplateData",
-          "ec2:Describe*",
           "ec2:DeleteTags",
           "ec2:CreateTags",
-          ],
+        ],
         "Effect" : "Allow",
         "Resource" : "arn:aws:ec2:*:*:*",
         "Sid" : "ReadEC2Permissions"
-      },
-      {
-        "Action" : [
-          "autoscaling:Describe*",
-          ],
-        "Effect" : "Allow",
-        "Resource" : "arn:aws:autoscaling:*:*:*",
-        "Sid" : "ReadAutoScalingPermissions"
-      },
-      {
-        "Action" : [
-          "acm:ListTagsForCertificate",
-          "acm:DescribeCertificate",
-          "acm:AddTagsToCertificate"
-        ],
-        "Effect" : "Allow",
-        "Resource" : "arn:aws:acm:*:*:*",
-        "Sid" : "ReadACMPermissions"
       },
       {
         "Action" : [
@@ -126,7 +89,7 @@ resource "aws_iam_policy" "operation_fde_read" {
           "arn:aws:iam::*:oidc-provider/oidc.eks.*.amazonaws.com",
           "arn:aws:iam::*:instance-profile/project-n-*"
         ],
-        "Sid" : "IAM"
+        "Sid" : "GranicaIAM"
       },
       {
         "Action" : "s3:*",
@@ -136,7 +99,7 @@ resource "aws_iam_policy" "operation_fde_read" {
           "arn:aws:s3:::n-*",
           "arn:aws:s3:::granica-*"
         ],
-        "Sid" : "S3"
+        "Sid" : "GranicaS3"
       },
       {
         "Action" : "s3:ListAllMyBuckets",
@@ -154,7 +117,7 @@ resource "aws_iam_policy" "operation_fde_read" {
         ],
         "Effect" : "Allow",
         "Resource" : "arn:aws:eks:*:*:cluster/project-n-*",
-        "Sid" : "EKS"
+        "Sid" : "GranicaEKS"
       },
       {
         "Action" : [
@@ -169,26 +132,13 @@ resource "aws_iam_policy" "operation_fde_read" {
           "arn:aws:eks:*:*:cluster/project-n-*",
           "arn:aws:eks:*:*:addon/project-n-*/*/*"
         ],
-        "Sid" : "EKSAddons"
+        "Sid" : "GranicaEKSAddons"
       },
       {
         "Action" : "eks:Describe*",
         "Effect" : "Allow",
         "Resource" : "arn:aws:eks:*:*:*",
         "Sid" : "EKSDescribe"
-      },
-      {
-        "Action" : [
-          "sqs:UntagQueue",
-          "sqs:TagQueue",
-          "sqs:ListQueues",
-          "sqs:ListQueueTags",
-          "sqs:GetQueueUrl",
-          "sqs:GetQueueAttributes",
-        ],
-        "Effect" : "Allow",
-        "Resource" : "arn:aws:sqs:*:*:project-n-*",
-        "Sid" : "SQS"
       },
       {
         "Action" : [
@@ -202,58 +152,8 @@ resource "aws_iam_policy" "operation_fde_read" {
           "arn:aws:logs:*:*:log-group::log-stream*",
           "arn:aws:logs:*:*:log-group:/aws/eks/project-n*"
         ],
-        "Sid" : "logs"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_policy" "operation-admin-vpc-permissions" {
-  name        = "granica-operations-vpc-read"
-  description = "Project N Operations VPC Permissions"
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        "Action" : [
-          "ec2:DescribeSubnets",
-          "ec2:CreateTags",
-        ],
-        "Effect" : "Allow",
-        "Resource" : "arn:aws:ec2:*:*:*",
-        "Sid" : "VPC"
-      }
-    ]
-  })
-}
-
-resource "aws_iam_policy" "operation-eks-addons-terraform" {
-  name        = "granica-operations-eks-addons-terraform-read"
-  description = "Project N EKS Addons Terraform"
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        "Action" : [
-          "eks:UntagResource",
-          "eks:TagResource",
-          "eks:ListUpdates",
-          "eks:ListTagsForResource",
-          "eks:ListAddons",
-        ],
-        "Effect" : "Allow",
-        "Resource" : [
-          "arn:aws:eks:*:*:cluster/project-n-*",
-          "arn:aws:eks:*:*:addon/project-n-*/*/*"
-        ],
-        "Sid" : "EKSAddons"
+        "Sid" : "GranicaLogs"
       },
-      {
-        "Action" : "eks:Describe*",
-        "Effect" : "Allow",
-        "Resource" : "arn:aws:eks:*:*:*",
-        "Sid" : "EKSDescribe"
-      }
     ]
   })
 }
@@ -268,13 +168,7 @@ resource "aws_iam_user" "operations-users" {
 resource "aws_iam_user_policy_attachment" "operation_cloudshell" {
   count      = length(var.operations_user_names)
   user       = aws_iam_user.operations-users[count.index].name
-  policy_arn = aws_iam_policy.cloudshell_access.arn
-}
-
-resource "aws_iam_user_policy_attachment" "operation_granica_fde_access" {
-  count      = length(var.operations_user_names)
-  user       = aws_iam_user.operations-users[count.index].name
-  policy_arn = aws_iam_policy.operation_granica_fde_access.arn
+  policy_arn = "arn:aws:iam::aws:policy/AWSCloudShellFullAccess"
 }
 
 resource "aws_iam_user_policy_attachment" "operation_fde_read" {
@@ -283,20 +177,32 @@ resource "aws_iam_user_policy_attachment" "operation_fde_read" {
   policy_arn = aws_iam_policy.operation_fde_read.arn
 }
 
-resource "aws_iam_user_policy_attachment" "operation-admin-vpc-permissions" {
-  count      = length(var.operations_user_names)
-  user       = aws_iam_user.operations-users[count.index].name
-  policy_arn = aws_iam_policy.operation-admin-vpc-permissions.arn
-}
-
-resource "aws_iam_user_policy_attachment" "operation-eks-addons-terraform" {
-  count      = length(var.operations_user_names)
-  user       = aws_iam_user.operations-users[count.index].name
-  policy_arn = aws_iam_policy.operation-eks-addons-terraform.arn
-}
-
-resource "aws_iam_user_policy_attachment" "jeff_test_ec2_readonly" {
+resource "aws_iam_user_policy_attachment" "operation-ec2-readonly" {
   count      = length(var.operations_user_names)
   user       = aws_iam_user.operations-users[count.index].name
   policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
+}
+
+resource "aws_iam_user_policy_attachment" "operation-ec2-instance-connect" {
+  count      = length(var.operations_user_names)
+  user       = aws_iam_user.operations-users[count.index].name
+  policy_arn = "arn:aws:iam::aws:policy/EC2InstanceConnect"
+}
+
+resource "aws_iam_user_policy_attachment" "operation-autoscaling-readonly" {
+  count      = length(var.operations_user_names)
+  user       = aws_iam_user.operations-users[count.index].name
+  policy_arn = "arn:aws:iam::aws:policy/AutoScalingReadOnlyAccess"
+}
+
+resource "aws_iam_user_policy_attachment" "operation-acm-readonly" {
+  count      = length(var.operations_user_names)
+  user       = aws_iam_user.operations-users[count.index].name
+  policy_arn = "arn:aws:iam::aws:policy/AWSCertificateManagerReadOnly"
+}
+
+resource "aws_iam_user_policy_attachment" "operation-sqs-readonly" {
+  count      = length(var.operations_user_names)
+  user       = aws_iam_user.operations-users[count.index].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSQSReadOnlyAccess"
 }
