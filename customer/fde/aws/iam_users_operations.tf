@@ -69,7 +69,7 @@ resource "aws_iam_policy" "operation_fde_read" {
           "ec2:CreateTags",
           ],
         "Effect" : "Allow",
-        "Resource" : "arn:aws:ec2:*",
+        "Resource" : "arn:aws:ec2:*:*:*",
         "Sid" : "ReadEC2Permissions"
       },
       {
@@ -77,7 +77,7 @@ resource "aws_iam_policy" "operation_fde_read" {
           "autoscaling:Describe*",
           ],
         "Effect" : "Allow",
-        "Resource" : "arn:aws:autoscaling:*",
+        "Resource" : "arn:aws:autoscaling:*:*:*",
         "Sid" : "ReadAutoScalingPermissions"
       },
       {
@@ -87,7 +87,7 @@ resource "aws_iam_policy" "operation_fde_read" {
           "acm:AddTagsToCertificate"
         ],
         "Effect" : "Allow",
-        "Resource" : "arn:aws:acm:*",
+        "Resource" : "arn:aws:acm:*:*:*",
         "Sid" : "ReadACMPermissions"
       },
       {
@@ -141,7 +141,7 @@ resource "aws_iam_policy" "operation_fde_read" {
       {
         "Action" : "s3:ListAllMyBuckets",
         "Effect" : "Allow",
-        "Resource" : "arn:aws:s3*",
+        "Resource" : "arn:aws:s3::*:*",
         "Sid" : "ListAllBuckets"
       },
       {
@@ -174,7 +174,7 @@ resource "aws_iam_policy" "operation_fde_read" {
       {
         "Action" : "eks:Describe*",
         "Effect" : "Allow",
-        "Resource" : "arn:aws:eks:*",
+        "Resource" : "arn:aws:eks:*:*:*",
         "Sid" : "EKSDescribe"
       },
       {
@@ -220,7 +220,7 @@ resource "aws_iam_policy" "operation-admin-vpc-permissions" {
           "ec2:CreateTags",
         ],
         "Effect" : "Allow",
-        "Resource" : "arn:aws:ec2:*",
+        "Resource" : "arn:aws:ec2:*:*:*",
         "Sid" : "VPC"
       }
     ]
@@ -251,7 +251,7 @@ resource "aws_iam_policy" "operation-eks-addons-terraform" {
       {
         "Action" : "eks:Describe*",
         "Effect" : "Allow",
-        "Resource" : "arn:aws:eks:*",
+        "Resource" : "arn:aws:eks:*:*:*",
         "Sid" : "EKSDescribe"
       }
     ]
@@ -293,4 +293,10 @@ resource "aws_iam_user_policy_attachment" "operation-eks-addons-terraform" {
   count      = length(var.operations_user_names)
   user       = aws_iam_user.operations-users[count.index].name
   policy_arn = aws_iam_policy.operation-eks-addons-terraform.arn
+}
+
+resource "aws_iam_user_policy_attachment" "jeff_test_ec2_readonly" {
+  count      = length(var.operations_user_names)
+  user       = aws_iam_user.operations-users[count.index].name
+  policy_arn = "arn:aws:iam::aws:policy/AmazonEC2ReadOnlyAccess"
 }
