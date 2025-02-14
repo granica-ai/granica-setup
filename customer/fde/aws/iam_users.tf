@@ -123,6 +123,15 @@ resource "aws_iam_policy" "project_n_admin_deploy" {
             "Sid": "UnrestrictedResourcePermissions"
         },
         {
+            "Sid": "ListInstanceProfilesGlobal",
+            "Effect": "Allow",
+            "Action": [
+                "iam:ListInstanceProfilesForRole",
+                "iam:ListInstanceProfiles"
+            ],
+            "Resource": "*"
+        },
+        {
             "Action": [
                 "iam:UpdateOpenIDConnectProviderThumbprint",
                 "iam:UpdateAssumeRolePolicy",
@@ -141,8 +150,6 @@ resource "aws_iam_policy" "project_n_admin_deploy" {
                 "iam:ListRoleTags",
                 "iam:ListRolePolicies",
                 "iam:ListPolicyVersions",
-                "iam:ListInstanceProfilesForRole",
-                "iam:ListInstanceProfiles",
                 "iam:ListEntitiesForPolicy",
                 "iam:ListAttachedRolePolicies",
                 "iam:GetRolePolicy",
