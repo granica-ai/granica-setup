@@ -1,8 +1,14 @@
-# FDE AWS Setup
+# FDE AWS User Setup
 
-This directory contains the Terraform configuration for setting up FDE users and their permissions in AWS.
+This directory contains the Terraform configuration for setting up FDE users and their permissions in AWS. 
+There are 2 types of users that can be created:
+
+- Administer Users: These users have permissions that are required to deploy, upgrade, and manage a Granica deployment
+- Operations Users: These users have permissions that are required to perform operations on an already deployed Granica deployment
 
 ### Quick Start
+
+Run the following commands from a terminal that is configured with your AWS credentials. See [Authentication and access credentials for the AWS CLI](https://docs.aws.amazon.com/cli/latest/userguide/cli-chap-authentication.html) for details. For ease of use we recommend using [AWS CloudShell](https://aws.amazon.com/cloudshell/).
 
 **1. Install Terraform and Clone Setup Repo**
 ```bash
@@ -44,8 +50,7 @@ terraform apply
 
 ### Next Steps
 
-After the FDE users are created:
-- Share the credentials with the FDE users
+After the FDE users are created share the credentials with the FDE users
 
 ### Cleanup
 
