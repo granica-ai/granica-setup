@@ -88,7 +88,6 @@ resource "aws_iam_policy" "project_n_admin_deploy" {
     Statement = [
       {
         "Action" : [
-          "route53:*",
           "kms:UntagResource",
           "kms:TagResource",
           "kms:ScheduleKeyDeletion",
