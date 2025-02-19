@@ -81,8 +81,7 @@ data "aws_iam_policy_document" "deploy" {
       "kms:CreateGrant",
       "kms:TagResource",
       "kms:UntagResource",
-      "kms:ScheduleKeyDeletion",
-      "route53:*"
+      "kms:ScheduleKeyDeletion"
     ]
     resources = ["*"]
   }
