@@ -24,7 +24,7 @@ cd granica-setup/customer/fde/aws
 
 Create `terraform.tfvars` in this directory. A sample is provided in `terraform.tfvars.sample` as well as below:
 ```hcl
-user_names = ["user@gmail.com"]                 # List of FDE administer users to create
+administer_user_names = ["user@gmail.com"]      # List of FDE administer users to create
 operations_user_names = ["user@gmail.com"]      # List of FDE operations users to create
 aws_region = "<region>"                         # Region where users will be created
 ```
