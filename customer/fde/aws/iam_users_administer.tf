@@ -408,43 +408,43 @@ resource "aws_iam_policy" "project-n-oidc-additional-terraform" {
 
 # Create users
 resource "aws_iam_user" "users" {
-  count = length(var.user_names)
-  name  = var.user_names[count.index]
+  count = length(var.administer_user_names)
+  name  = var.administer_user_names[count.index]
 }
 
 # Attach policies to users
 resource "aws_iam_user_policy_attachment" "cloudshell" {
-  count      = length(var.user_names)
+  count      = length(var.administer_user_names)
   user       = aws_iam_user.users[count.index].name
   policy_arn = aws_iam_policy.cloudshell_access.arn
 }
 
 resource "aws_iam_user_policy_attachment" "granica_lb" {
-  count      = length(var.user_names)
+  count      = length(var.administer_user_names)
   user       = aws_iam_user.users[count.index].name
   policy_arn = aws_iam_policy.granica_lb.arn
 }
 
 resource "aws_iam_user_policy_attachment" "project_n_admin_deploy" {
-  count      = length(var.user_names)
+  count      = length(var.administer_user_names)
   user       = aws_iam_user.users[count.index].name
   policy_arn = aws_iam_policy.project_n_admin_deploy.arn
 }
 
 resource "aws_iam_user_policy_attachment" "project-n-admin-vpc-permissions" {
-  count      = length(var.user_names)
+  count      = length(var.administer_user_names)
   user       = aws_iam_user.users[count.index].name
   policy_arn = aws_iam_policy.project-n-admin-vpc-permissions.arn
 }
 
 resource "aws_iam_user_policy_attachment" "project-n-eks-addons-terraform" {
-  count      = length(var.user_names)
+  count      = length(var.administer_user_names)
   user       = aws_iam_user.users[count.index].name
   policy_arn = aws_iam_policy.project-n-eks-addons-terraform.arn
 }
 
 resource "aws_iam_user_policy_attachment" "project-n-oidc-additional-terraform" {
-  count      = length(var.user_names)
+  count      = length(var.administer_user_names)
   user       = aws_iam_user.users[count.index].name
   policy_arn = aws_iam_policy.project-n-oidc-additional-terraform.arn
 }
