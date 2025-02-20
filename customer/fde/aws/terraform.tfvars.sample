@@ -1,3 +1,4 @@
 # Update the list to create FDE users 
-user_names = ["FDE1_granica", "FDE2_granica"]
-aws_region = "us-east-1"  # or your preferred region
+administer_user_names = ["user@gmail.com"]
+operations_user_names = ["user@gmail.com"]
+aws_region = "us-east-1"

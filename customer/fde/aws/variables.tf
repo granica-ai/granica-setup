@@ -9,8 +9,8 @@ variable "operations_user_names" {
   default     = ["granica_fde_operations"]
 }
 
-variable "user_names" {
+variable "administer_user_names" {
   description = "Names of the Granica admin IAM user(s) to create"
   type        = list(string)
-  default     = ["granica_fde_admin"]
+  default     = ["granica_fde_administer"]
 }
