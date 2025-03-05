@@ -28,3 +28,9 @@ variable "granica_username" {
   description = "Name of the Granica user"
   default     = "granica"
 }
+
+variable "machine_type" {
+  type        = string
+  description = "GCP machine type for the admin server"
+  default     = "e2-small"
+}
