@@ -35,10 +35,10 @@ resource "google_compute_subnetwork" "private_subnet_3" {
 }
 
 resource "google_compute_subnetwork" "public_subnet_1" {
-  name          = "granica-public-subnet-1"
-  ip_cidr_range = "10.47.4.0/24"
-  region        = var.region
-  network       = google_compute_network.vpc_network.self_link
+  name                     = "granica-public-subnet-1"
+  ip_cidr_range            = "10.47.4.0/24"
+  region                   = var.region
+  network                  = google_compute_network.vpc_network.self_link
   private_ip_google_access = false
 
 }

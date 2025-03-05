@@ -1,6 +1,6 @@
 resource "google_compute_instance" "vm_instance" {
   name         = "granica-admin-server"
-  machine_type = "e2-small"
+  machine_type = var.machine_type
   zone         = var.zone
 
   boot_disk {
