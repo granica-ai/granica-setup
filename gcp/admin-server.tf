@@ -42,7 +42,16 @@ resource "google_compute_instance" "vm_instance" {
     sudo yum -y update
     sudo dnf install -y google-cloud-cli 2>> $log
     sudo dnf install -y google-cloud-cli-gke-gcloud-auth-plugin 2>> $log
+    sudo yum -y install java-11-openjdk-devel python3 python3-pip python3-devel gcc 2>> $log
+    sudo -u ${var.granica_username} bash -c "
+      cd /home/${var.granica_username}
+      python3 -m venv venv
+      source venv/bin/activate
+      pip install --upgrade pip
+      pip install 'google-cloud-storage>=2.10.0' 'pyarrow>=14.0.0' 'pyspark>=3.4.0' 'delta-spark>=2.4.0' 'pandas>=2.0.0'
+    " 2>> $log
+    echo "alias activate-granica='source /home/${var.granica_username}/venv/bin/activate'" >> /home/${var.granica_username}/.bashrc
+    echo "export JAVA_HOME=/usr/lib/jvm/java-11-openjdk" >> /home/${var.granica_username}/.bashrc
     sudo yum -y install ${var.package_url} 2>> $log
-
   EOF
 }
