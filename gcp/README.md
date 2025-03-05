@@ -58,7 +58,7 @@ If you are working in Cloud Shell you must be logged in as Admin. If you are run
 
 7. Give GKE permission to the admin server service account
    ```bash
-   gcloud projects add-iam-policy-binding granica-admin-server-vt \
+   gcloud projects add-iam-policy-binding <PROJECT-ID> \
        --member="serviceAccount:admin-server-sa@<PROJECT-ID>.iam.gserviceaccount.com" \
        --role="roles/artifactregistry.reader"
    ```
