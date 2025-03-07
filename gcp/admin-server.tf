@@ -42,6 +42,7 @@ resource "google_compute_instance" "vm_instance" {
     sudo yum -y update
     sudo dnf install -y google-cloud-cli 2>> $log
     sudo dnf install -y google-cloud-cli-gke-gcloud-auth-plugin 2>> $log
+    sudo pip3 install google-cloud-storage pyarrow pandas tabulate 2>> $log
     sudo yum -y install ${var.package_url} 2>> $log
 
   EOF

@@ -56,14 +56,7 @@ If you are working in Cloud Shell you must be logged in as Admin. If you are run
    terraform apply
    ```
 
-7. Give GKE permission to the admin server service account
-   ```bash
-   gcloud projects add-iam-policy-binding <PROJECT-ID> \
-       --member="serviceAccount:admin-server-sa@<PROJECT-ID>.iam.gserviceaccount.com" \
-       --role="roles/artifactregistry.reader"
-   ```
-
-8. Login to the Admin Server
+7. Login to the Admin Server
    ```bash
    gcloud compute ssh granica-admin-server --project=<project-id> --zone=<zone> --tunnel-through-iap
    ```
