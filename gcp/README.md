@@ -48,7 +48,7 @@ If you are working in Cloud Shell you must be logged in as Admin. If you are run
    region         = "us-central1"
    zone           = "us-central1-a"
    package_url    = "https://granica.ai/granica.rpm"
-   server_name = "CHANGE_ME"
+   server_name    = "CHANGE_ME"
    ```
 
 6. Run the following
