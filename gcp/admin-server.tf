@@ -1,5 +1,5 @@
 resource "google_compute_instance" "vm_instance" {
-  name         = "granica-admin-server"
+  name         = "granica-admin-server-${var.server_name}"
   machine_type = var.machine_type
   zone         = var.zone
 

@@ -34,3 +34,9 @@ variable "machine_type" {
   description = "GCP machine type for the admin server"
   default     = "e2-small"
 }
+
+variable "server_name" {
+  description = "Suffix for the admin server instance name"
+  type        = string
+  default     = "dev"
+}

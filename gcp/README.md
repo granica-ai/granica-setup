@@ -48,6 +48,7 @@ If you are working in Cloud Shell you must be logged in as Admin. If you are run
    region         = "us-central1"
    zone           = "us-central1-a"
    package_url    = "https://granica.ai/granica.rpm"
+   server_name    = "CHANGE_ME"
    ```
 
 6. Run the following
@@ -58,7 +59,9 @@ If you are working in Cloud Shell you must be logged in as Admin. If you are run
 
 7. Login to the Admin Server
    ```bash
-   gcloud compute ssh granica-admin-server --project=<project-id> --zone=<zone> --tunnel-through-iap
+   gcloud compute ssh granica-admin-server-{server_name} --project=<project-id> --zone=<zone> --tunnel-through-iap
+
+   # server_name is what you provided in the terraform.tfvars file
    ```
    (Use the gcloud command output at the end of the terraform apply to ssh into the admin server)
    ```bash
