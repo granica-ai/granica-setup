@@ -39,11 +39,65 @@ resource "google_compute_instance" "vm_instance" {
     echo "vpc_id = \"${google_compute_network.vpc_network.id}\"" > /home/${var.granica_username}/config.tfvars
     echo "private_subnet_ids = [\"${google_compute_subnetwork.private_subnet_1.id}\", \"${google_compute_subnetwork.private_subnet_2.id}\", \"${google_compute_subnetwork.private_subnet_3.id}\"]" >> /home/${var.granica_username}/config.tfvars
     echo "public_subnet_ids = [\"${google_compute_subnetwork.public_subnet_1.id}\"]" >> /home/${var.granica_username}/config.tfvars
-    sudo yum -y update
-    sudo dnf install -y google-cloud-cli 2>> $log
-    sudo dnf install -y google-cloud-cli-gke-gcloud-auth-plugin 2>> $log
-    sudo pip3 install google-cloud-storage pyarrow pandas tabulate 2>> $log
-    sudo yum -y install ${var.package_url} 2>> $log
-
+    
+    # Check for network connectivity first (like AWS)
+    echo "Checking if Google DNS is reachable..." >> $log
+    until ping -c 1 8.8.8.8; do
+      echo "Waiting for 8.8.8.8 to become reachable..." >> $log
+      sleep 1
+    done
+    echo "8.8.8.8 is reachable!" >> $log
+    
+    # System update with retry (like AWS)
+    max_attempts=5
+    attempt_num=1
+    success=false
+    while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
+      echo "Trying yum update and install of dependencies" >> $log
+      sudo yum -y update
+      sudo dnf install -y google-cloud-cli google-cloud-cli-gke-gcloud-auth-plugin python3 python3-pip python3-devel gcc
+      if [ $? -eq 0 ]; then
+        echo "Yum update and install succeeded" >> $log
+        success=true
+      else
+        echo "Attempt $attempt_num failed. Sleeping for 5 seconds and trying again..." >> $log
+        sleep 5
+        ((attempt_num++))
+      fi
+    done
+    
+    # Install Python packages with retry (like AWS)
+    max_attempts=5
+    attempt_num=1
+    success=false
+    while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
+      echo "Trying to install Python packages" >> $log
+      sudo pip3 install google-cloud-storage pyarrow pandas
+      if [ $? -eq 0 ]; then
+        echo "Python packages install succeeded" >> $log
+        success=true
+      else
+        echo "Attempt $attempt_num failed. Sleeping for 5 seconds and trying again..." >> $log
+        sleep 5
+        ((attempt_num++))
+      fi
+    done
+    
+    # Install Granica package with retry (like AWS)
+    max_attempts=5
+    attempt_num=1
+    success=false
+    while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
+      echo "Trying download of Granica rpm" >> $log
+      sudo yum -y install ${var.package_url}
+      if [ $? -eq 0 ]; then
+        echo "Yum install succeeded" >> $log
+        success=true
+      else
+        echo "Attempt $attempt_num failed. Sleeping for 5 seconds and trying again..." >> $log
+        sleep 5
+        ((attempt_num++))
+      fi
+    done
   EOF
 }
