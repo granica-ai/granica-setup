@@ -67,7 +67,7 @@ If you are working in Cloud Shell you must be logged in as Admin. If you are run
    ```bash
    $ sudo su - granica # Use granica user to run granica commands
    # Check if the granica RPM has finished installation will take around 10-15 mins to get installed.
-   # Can check the logs here (tail -f /var/log/dnf.rpm.log)
+   # Can check the logs here (tail -f /var/log/dnf.rpm.log  --> to see more debug logs tail -f /var/log/startup-script.log)
    $ granica --help
    $ granica deploy --var-file config.tfvars
    # Will take around 10-15 mins for the clusters to be deployed
