@@ -171,8 +171,8 @@ resource "aws_iam_policy" "fde_ssm" {
           "ssm:SendCommand"
         ],
         "Resource" : [
-          "arn:aws:ec2:*:401252763139:instance/*",
-          "arn:aws:ssm:*:401252763139:document/SSM-SessionManagerRunShell"
+          "arn:aws:ec2:*:*:instance/*",
+          "arn:aws:ssm:*:*:document/SSM-SessionManagerRunShell"
         ]
       },
       {
