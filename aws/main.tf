@@ -190,6 +190,10 @@ while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
   fi
 done
 
+if [ "$success" = false ]; then
+  echo "ERROR: Failed to install dependencies after $max_attempts attempts"
+fi
+
 echo "Place resource ids at /home/ec2-user/config.tfvars"
 echo "vpc_id             = \"${module.vpc.vpc_id}\"" > /home/ec2-user/config.tfvars
 echo 'private_subnet_ids = ${jsonencode(module.vpc.private_subnets)}' >> /home/ec2-user/config.tfvars
@@ -215,6 +219,10 @@ while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
     ((attempt_num++))
   fi
 done
+
+if [ "$success" = false ]; then
+  echo "ERROR: Failed to install Granica package after $max_attempts attempts"
+fi
 
 echo 'export PATH=~/.local/bin:$PATH' >> /home/ec2-user/.bash_profile && chown ec2-user /home/ec2-user/.bash_profile
 su ec2-user -c 'source ~/.bash_profile && aws configure set region ${var.aws_region}'
