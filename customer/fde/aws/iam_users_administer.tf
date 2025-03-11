@@ -448,3 +448,9 @@ resource "aws_iam_user_policy_attachment" "project-n-oidc-additional-terraform" 
   user       = aws_iam_user.users[count.index].name
   policy_arn = aws_iam_policy.project-n-oidc-additional-terraform.arn
 }
+
+resource "aws_iam_user_policy_attachment" "administer_fde_ssm" {
+  count      = length(var.administer_user_names)
+  user       = aws_iam_user.users[count.index].name
+  policy_arn = aws_iam_policy.fde_ssm.arn
+}

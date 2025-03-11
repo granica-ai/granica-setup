@@ -49,6 +49,11 @@ resource "aws_iam_role_policy_attachment" "admin-vpc" {
   role       = aws_iam_role.admin.name
 }
 
+resource "aws_iam_role_policy_attachment" "admin-ssm" {
+  policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
+  role       = aws_iam_role.admin.name
+}
+
 data "aws_iam_policy_document" "deploy" {
   statement {
     sid    = "UnrestrictedResourcePermissions"
