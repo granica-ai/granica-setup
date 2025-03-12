@@ -158,6 +158,45 @@ resource "aws_iam_policy" "operation_fde_read" {
   })
 }
 
+resource "aws_iam_policy" "fde_ssm" {
+  name        = "granica-fde-session-manager-shell"
+  description = "AWS SSM Session Manager shell access"
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "ssm:StartSession",
+          "ssm:SendCommand"
+        ],
+        "Resource" : [
+          "arn:aws:ec2:*:*:instance/*",
+          "arn:aws:ssm:*:*:document/SSM-SessionManagerRunShell"
+        ]
+      },
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "ssm:GetConnectionStatus",
+          "ssm:DescribeInstanceInformation"
+        ],
+        "Resource" : "*"
+      },
+      {
+        "Effect" : "Allow",
+        "Action" : [
+          "ssm:TerminateSession",
+          "ssm:ResumeSession"
+        ],
+        "Resource" : [
+          "arn:aws:ssm:*:*:session/$${aws:userid}-*"
+        ]
+      }
+    ]
+  })
+}
+
 # Create users
 resource "aws_iam_user" "operations-users" {
   count = length(var.operations_user_names)
@@ -175,6 +214,12 @@ resource "aws_iam_user_policy_attachment" "operation_fde_read" {
   count      = length(var.operations_user_names)
   user       = aws_iam_user.operations-users[count.index].name
   policy_arn = aws_iam_policy.operation_fde_read.arn
+}
+
+resource "aws_iam_user_policy_attachment" "operation_fde_ssm" {
+  count      = length(var.operations_user_names)
+  user       = aws_iam_user.operations-users[count.index].name
+  policy_arn = aws_iam_policy.fde_ssm.arn
 }
 
 resource "aws_iam_user_policy_attachment" "operation-ec2-readonly" {
