@@ -82,7 +82,7 @@ resource "google_compute_instance" "vm_instance" {
     success=false
     while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
       echo "Trying to install Python packages"
-      sudo pip3 install google-cloud-storage pyarrow pandas
+      sudo pip3 install google-cloud-storage pyarrow pandas tabulate
       if [ $? -eq 0 ]; then
         echo "Python packages install succeeded"
         success=true
@@ -116,6 +116,35 @@ resource "google_compute_instance" "vm_instance" {
     
     if [ "$success" = false ]; then
       echo "ERROR: Failed to install Granica package after $max_attempts attempts"
+    fi
+    
+    # Install Helm with retry
+    max_attempts=5
+    attempt_num=1
+    success=false
+    echo "Installing Helm..."
+    while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
+      echo "Trying to install Helm (attempt $attempt_num)"
+      curl -fsSL -o get_helm.sh https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+      chmod 700 get_helm.sh
+      ./get_helm.sh
+      if [ $? -eq 0 ]; then
+        echo "Helm installation succeeded"
+        success=true
+        # Add helm to granica user's path
+        echo 'export PATH=$PATH:/usr/local/bin' >> /home/${var.granica_username}/.bashrc
+        # Add Kiwigrid repo for Graphite
+        sudo -u ${var.granica_username} helm repo add kiwigrid https://kiwigrid.github.io
+        sudo -u ${var.granica_username} helm repo update
+      else
+        echo "Attempt $attempt_num failed. Sleeping for 5 seconds and trying again..."
+        sleep 5
+        ((attempt_num++))
+      fi
+    done
+    
+    if [ "$success" = false ]; then
+      echo "ERROR: Failed to install Helm after $max_attempts attempts"
     fi
     
     echo "Granica setup complete!"
