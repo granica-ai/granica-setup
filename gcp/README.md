@@ -18,6 +18,11 @@ If you are working in Cloud Shell you must be logged in as Admin. If you are run
    gcloud services enable compute.googleapis.com
    ```
 
+   If you are using a deployment with `dataproc_enabled: true`, you should also run:
+   ```bash
+   gcloud services enable dataproc.googleapis.com
+   ```
+
 2. Install Terraform on Cloud Shell or on your laptop
    ```bash
    git clone https://github.com/tfutils/tfenv.git ~/.tfenv
