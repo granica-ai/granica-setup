@@ -82,7 +82,7 @@ resource "google_compute_instance" "vm_instance" {
     success=false
     while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
       echo "Trying to install Python packages"
-      sudo pip3 install google-cloud-storage pyarrow pandas
+      sudo pip3 install google-cloud-storage pyarrow pandas tabulate
       if [ $? -eq 0 ]; then
         echo "Python packages install succeeded"
         success=true
