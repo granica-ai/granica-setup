@@ -28,8 +28,8 @@ echo "Using AWS Region: $REGION"
 echo "Customer ID: $CUSTOMER_ID"
 echo "RPM URL: $RPM_URL"
 
-# Define the remote state bucket name
-STATE_BUCKET="granica-vpc-tf-${CUSTOMER_ID}"
+# Define the remote state bucket name with the random suffix appended
+STATE_BUCKET="granica-vpc-tf-${CUSTOMER_ID}-$$"
 echo "Using remote state bucket: $STATE_BUCKET"
 
 # Create the remote state bucket if it doesn't exist
@@ -111,4 +111,3 @@ terraform apply -auto-approve
 echo "Deployment complete."
 echo "Your Granica Admin Server should now be available as granica-admin-server-$CUSTOMER_ID."
 echo "To complete the Granica setup, connect to the instance and run: 'granica deploy --var-file=config.tfvars'"
-
