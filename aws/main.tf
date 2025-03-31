@@ -154,9 +154,6 @@ resource "aws_instance" "admin_server" {
 
   user_data = <<EOF
 #!/bin/bash
-# Enable better logging to serial console and syslog
-exec > >(tee /var/log/startup-script.log)
-exec 2>&1
 
 echo "Enter Granica user-data script"
 
@@ -245,7 +242,6 @@ if systemctl is-active --quiet crond; then
 else
   echo "ERROR: Cron service is not running, attempting to restart..."
   systemctl restart crond
-  sleep 2
   if systemctl is-active --quiet crond; then
     echo "RECOVERY: Cron service restarted successfully"
   else
