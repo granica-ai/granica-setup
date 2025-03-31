@@ -154,6 +154,10 @@ resource "aws_instance" "admin_server" {
 
   user_data = <<EOF
 #!/bin/bash
+# Enable better logging to serial console and syslog
+exec > >(tee /var/log/startup-script.log)
+exec 2>&1
+
 echo "Enter Granica user-data script"
 
 echo "Checking if Google DNS is reachable..."
@@ -194,6 +198,16 @@ if [ "$success" = false ]; then
   echo "ERROR: Failed to install dependencies after $max_attempts attempts"
 fi
 
+# Enable and start cron service
+echo "Enabling and starting cron service..."
+systemctl enable crond
+systemctl start crond
+if systemctl is-active --quiet crond; then
+  echo "Cron service started successfully"
+else
+  echo "ERROR: Failed to start cron service"
+fi
+
 echo "Place resource ids at /home/ec2-user/config.tfvars"
 echo "vpc_id             = \"${module.vpc.vpc_id}\"" > /home/ec2-user/config.tfvars
 echo 'private_subnet_ids = ${jsonencode(module.vpc.private_subnets)}' >> /home/ec2-user/config.tfvars
@@ -222,6 +236,21 @@ done
 
 if [ "$success" = false ]; then
   echo "ERROR: Failed to install Granica package after $max_attempts attempts"
+fi
+
+# Verify cron is still running after RPM installation
+echo "Verifying cron service status after RPM installation..."
+if systemctl is-active --quiet crond; then
+  echo "VERIFICATION: Cron service is running properly"
+else
+  echo "ERROR: Cron service is not running, attempting to restart..."
+  systemctl restart crond
+  sleep 2
+  if systemctl is-active --quiet crond; then
+    echo "RECOVERY: Cron service restarted successfully"
+  else
+    echo "CRITICAL ERROR: Failed to restart cron service"
+  fi
 fi
 
 echo 'export PATH=~/.local/bin:$PATH' >> /home/ec2-user/.bash_profile && chown ec2-user /home/ec2-user/.bash_profile
