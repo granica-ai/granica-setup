@@ -14,7 +14,18 @@ fi
 if [ "$GOOGLE_CLOUD_SHELL" = "true" ]; then
   echo "Running inside a Google Cloud Shell Terminal"
 else
-  echo "Warning: Not running in a Google Cloud Shell Terminal. This script was designed to run in a Google Cloud Shell Terminal and may hit unexpected issues."
+  echo "Warning: Not running in a Google Cloud Shell Terminal. This script was designed to run in a Google Cloud Shell Terminal and may not work as expected."
+fi
+
+if [ -n "$CLOUDSDK_CONFIG" ] && [ -z "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
+  export GOOGLE_APPLICATION_CREDENTIALS=$CLOUDSDK_CONFIG/application_default_credentials.json
+fi
+
+if gcloud auth list --format="value(account)" 2>/dev/null | grep -q .; then
+  echo "You are logged in to gcloud as: $(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
+else
+  echo "You are NOT logged in to gcloud. Please follow the prompts to login."
+  gcloud auth login
 fi
 
 CUSTOMER_ID="$1"
@@ -33,8 +44,17 @@ echo "RPM URL:                   $RPM_URL"
 STATE_BUCKET="granica-vpc-tf-${CUSTOMER_ID}-$$"
 echo "Using remote state bucket: $STATE_BUCKET"
 
+read -p "Would you like to proceed? (y/n): " answer
+if [[ "$answer" =~ ^[Yy]$ ]]; then
+  echo "Proceeding..."
+else
+  echo "Aborted."
+  exit 1
+fi
+
 ### STEP 1: Enable GCP APIs
 
+echo "Enabling GCP APIs..."
 gcloud services enable storage.googleapis.com
 gcloud services enable iam.googleapis.com
 gcloud services enable cloudresourcemanager.googleapis.com
@@ -87,10 +107,10 @@ cd granica-setup/gcp
 
 # Create the remote state bucket if it doesn't exist
 if ! gsutil ls -b gs://$STATE_BUCKET > /dev/null 2>&1; then
-    echo "Bucket $STATE_BUCKET does not exist. Creating..."
-    gcloud storage buckets create "$STATE_BUCKET" --location="$REGION"
+    echo "Bucket gs://$STATE_BUCKET does not exist. Creating..."
+    gcloud storage buckets create "gs://$STATE_BUCKET" --location="$REGION"
 else
-    echo "Bucket $STATE_BUCKET already exists."
+    echo "Bucket gs://$STATE_BUCKET already exists."
 fi
 
 ### STEP 4: Create or update backend.conf
@@ -99,7 +119,7 @@ cat > backend.conf <<EOF
 bucket = "$STATE_BUCKET"
 prefix = "$CUSTOMER_ID"
 EOF
-echo "Updated backend.conf."
+echo "Updated backend.conf"
 
 ### STEP 5: Create or update terraform.tfvars
 cat > terraform.tfvars <<EOF
@@ -109,7 +129,7 @@ zone        = "$ZONE"
 package_url = "$RPM_URL"
 server_name = "$CUSTOMER_ID"
 EOF
-echo "Updated terraform.tfvars."
+echo "Updated terraform.tfvars"
 
 ### STEP 6: Deploy
 
