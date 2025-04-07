@@ -1,6 +1,5 @@
 #!/bin/bash
 set -euo pipefail
-set -x
 
 # This script deploys the Granica Admin Server.
 # It is designed to be safe to run multiple times (idempotent).
@@ -17,15 +16,11 @@ else
   echo "Warning: Not running in a Google Cloud Shell Terminal. This script was designed to run in a Google Cloud Shell Terminal and may not work as expected."
 fi
 
-if [ -n "$CLOUDSDK_CONFIG" ] && [ -z "$GOOGLE_APPLICATION_CREDENTIALS" ]; then
-  export GOOGLE_APPLICATION_CREDENTIALS=$CLOUDSDK_CONFIG/application_default_credentials.json
-fi
-
 if gcloud auth list --format="value(account)" 2>/dev/null | grep -q .; then
   echo "You are logged in to gcloud as: $(gcloud auth list --filter=status:ACTIVE --format='value(account)')"
 else
   echo "You are NOT logged in to gcloud. Please follow the prompts to login."
-  gcloud auth login
+  gcloud auth login --update-adc
 fi
 
 CUSTOMER_ID="$1"
