@@ -29,15 +29,15 @@ ZONE="$3"
 REGION=${ZONE%-*}
 PROJECT=$(gcloud config get-value project 2>/dev/null | tail -n 1)
 
-echo "Using GCP Project:         $PROJECT"
-echo "Using GCP Region:          $REGION"
-echo "Using GCP Zone:            $ZONE"
-echo "Customer ID:               $CUSTOMER_ID"
-echo "RPM URL:                   $RPM_URL"
+echo "Using GCP Project:              $PROJECT"
+echo "Using GCP Region:               $REGION"
+echo "Using GCP Zone:                 $ZONE"
+echo "Customer ID:                    $CUSTOMER_ID"
+echo "RPM URL:                        $RPM_URL"
 
 # Define the remote state bucket name with the random suffix appended
 STATE_BUCKET="granica-vpc-tf-${CUSTOMER_ID}-$$"
-echo "Using remote state bucket: $STATE_BUCKET"
+echo "Using remote state bucket:      $STATE_BUCKET"
 
 read -p "Would you like to proceed? (y/n): " answer
 if [[ "$answer" =~ ^[Yy]$ ]]; then
@@ -127,6 +127,8 @@ EOF
 echo "Updated terraform.tfvars"
 
 ### STEP 6: Deploy
+
+export GOOGLE_APPLICATION_CREDENTIALS=$CLOUDSDK_CONFIG/application_default_credentials.json
 
 echo "Initializing Terraform with backend configuration..."
 terraform init -backend-config=backend.conf
