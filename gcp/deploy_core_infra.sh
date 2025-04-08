@@ -58,7 +58,6 @@ gcloud services enable container.googleapis.com
 gcloud services enable logging.googleapis.com
 gcloud services enable pubsub.googleapis.com
 gcloud services enable compute.googleapis.com
-gcloud services enable dataproc.googleapis.com
 
 ### STEP 2: Install Terraform via tfenv and clone/update Granica Setup Repo
 
