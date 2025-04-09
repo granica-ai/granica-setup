@@ -47,6 +47,21 @@ else
   exit 1
 fi
 
+echo "Checking for application-default credentails..."
+if gcloud auth application-default print-access-token > /dev/null 2>&1; then
+  echo "application-default credentails are set"
+else
+  if [ -f "${CLOUDSDK_CONFIG:-}/application_default_credentials.json" ]; then
+    export GOOGLE_APPLICATION_CREDENTIALS=$CLOUDSDK_CONFIG/application_default_credentials.json
+  fi
+  if gcloud auth application-default print-access-token > /dev/null 2>&1; then
+    echo "application-default credentails are set"
+  else
+    echo "application-default credentails are NOT set. Please follow the prompts to login."
+    gcloud auth application-default login
+  fi
+fi
+
 ### STEP 1: Enable GCP APIs
 
 echo "Enabling GCP APIs..."
@@ -126,8 +141,6 @@ EOF
 echo "Updated terraform.tfvars"
 
 ### STEP 6: Deploy
-
-export GOOGLE_APPLICATION_CREDENTIALS=$CLOUDSDK_CONFIG/application_default_credentials.json
 
 echo "Initializing Terraform with backend configuration..."
 terraform init -backend-config=backend.conf
