@@ -59,6 +59,7 @@ else
   else
     echo "application-default credentails are NOT set. Please follow the prompts to login."
     gcloud auth application-default login
+    export GOOGLE_APPLICATION_CREDENTIALS=$CLOUDSDK_CONFIG/application_default_credentials.json
   fi
 fi
 
