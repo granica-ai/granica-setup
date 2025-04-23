@@ -37,6 +37,13 @@ resource "aws_iam_policy" "vpc" {
   policy = data.aws_iam_policy_document.vpc.json
 }
 
+resource "aws_iam_policy" "emr" {
+  count = var.deploy_emr ? 1 : 0
+
+  name   = "project-n-admin-emr-permissions-${random_id.random_suffix.hex}"
+  policy = data.aws_iam_policy_document.emr.json
+}
+
 resource "aws_iam_role_policy_attachment" "admin-deploy" {
   policy_arn = aws_iam_policy.deploy.arn
   role       = aws_iam_role.admin.id
@@ -46,6 +53,13 @@ resource "aws_iam_role_policy_attachment" "admin-vpc" {
   count = var.manage_vpc ? 1 : 0
 
   policy_arn = aws_iam_policy.vpc[0].arn
+  role       = aws_iam_role.admin.name
+}
+
+resource "aws_iam_role_policy_attachment" "admin-emr" {
+  count = var.deploy_emr ? 1 : 0
+
+  policy_arn = aws_iam_policy.emr[0].arn
   role       = aws_iam_role.admin.name
 }
 
@@ -265,6 +279,17 @@ data "aws_iam_policy_document" "deploy" {
       "arn:aws:logs:*:*:log-group:/aws/eks/project-n*",
       "arn:aws:logs:*:*:log-group::log-stream*"
     ]
+  }
+}
+
+data "aws_iam_policy_document" "emr" {
+  statement {
+    sid    = "EMR"
+    effect = "Allow"
+    actions = [
+      "elasticmapreduce:*"
+    ]
+    resources = ["*"]
   }
 }
 
