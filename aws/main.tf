@@ -173,6 +173,10 @@ done
 cd /tmp && curl -O https://bootstrap.pypa.io/get-pip.py && chmod +x get-pip.py && python3 /tmp/get-pip.py
 su ec2-user -c 'python3 /tmp/get-pip.py'
 
+# Install required Python libraries
+echo "Installing required Python libraries..."
+pip3 install boto3 s5cmd pyarrow pandas tabulate
+
 max_attempts=5
 attempt_num=1
 success=false
