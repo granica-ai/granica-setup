@@ -14,6 +14,11 @@ variable "manage_vpc" {
   default = true
 }
 
+variable "deploy_emr" {
+  type    = bool
+  default = false
+}
+
 // Place admin-server in public subnet with a public IP
 variable "public_ip_enabled" {
   type    = bool
