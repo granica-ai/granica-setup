@@ -109,6 +109,7 @@ data "aws_iam_policy_document" "deploy" {
     sid    = "IAM"
     effect = "Allow"
     actions = [
+      "iam:DeleteRolePolicy",
       "iam:AddClientIDToOpenIDConnectProvider",
       "iam:AddRoleToInstanceProfile",
       "iam:AttachRolePolicy",
