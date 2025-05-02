@@ -30,6 +30,18 @@ module "vpc" {
   one_nat_gateway_per_az  = false
   map_public_ip_on_launch = false
 
+  # Enable proper deletion of NAT Gateways and EIPs
+  manage_default_network_acl    = true
+  manage_default_route_table    = true
+  manage_default_security_group = true
+  
+  # Ensure resources are properly destroyed
+  create_igw                    = true
+  nat_gateway_tags              = {
+    Name = "granica-vpc-${var.server_name}-nat-gateway"
+  }
+  reuse_nat_ips                 = false
+
   public_subnet_tags = {
     "Name" = "granica-vpc-${var.server_name}-public-subnet"
   }
@@ -46,12 +58,18 @@ locals {
 
 resource "aws_security_group" "ec2_instance_connect" {
   vpc_id = module.vpc.vpc_id
+  
+  depends_on = [module.vpc]
 
   egress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
     cidr_blocks = ["0.0.0.0/0"] // TODO: lock this down to the VPC CIDR
+  }
+  
+  tags = {
+    Name = "granica-ec2-instance-connect-sg-${var.server_name}"
   }
 }
 
@@ -64,6 +82,15 @@ resource "aws_ec2_instance_connect_endpoint" "main" {
   preserve_client_ip = false
   subnet_id          = local.target_subnet_id
   security_group_ids = [aws_security_group.ec2_instance_connect.id]
+  
+  depends_on = [
+    module.vpc,
+    aws_security_group.ec2_instance_connect
+  ]
+  
+  tags = {
+    Name = "granica-ec2-connect-endpoint-${var.server_name}"
+  }
 }
 
 # Add an S3 VPC endpoint
@@ -71,6 +98,8 @@ resource "aws_vpc_endpoint" "s3" {
   vpc_id            = module.vpc.vpc_id
   service_name      = "com.amazonaws.${var.aws_region}.s3"
   vpc_endpoint_type = "Gateway"
+  
+  depends_on = [module.vpc]
 
   route_table_ids = concat(
     module.vpc.public_route_table_ids,
@@ -83,6 +112,11 @@ resource "aws_vpc_endpoint" "s3" {
 
 resource "aws_security_group" "admin_server" {
   vpc_id = module.vpc.vpc_id
+  
+  depends_on = [
+    module.vpc,
+    aws_security_group.ec2_instance_connect
+  ]
 
   egress {
     from_port   = 0
@@ -115,6 +149,10 @@ resource "aws_security_group" "admin_server" {
       cidr_blocks = ["0.0.0.0/0"]
     }
   }
+  
+  tags = {
+    Name = "granica-admin-server-sg-${var.server_name}"
+  }
 }
 
 # TODO: Specify the exact AMI to use for now, as the latest AMI (al2023-ami-2023.6.20241121.0-kernel-6.1-x86_64) is not working for python ensurepip
@@ -140,7 +178,9 @@ data "aws_ami" "al2023" {
 resource "aws_instance" "admin_server" {
   depends_on = [
     aws_ec2_instance_connect_endpoint.main,
-    module.vpc
+    module.vpc,
+    aws_security_group.admin_server,
+    aws_vpc_endpoint.s3
   ]
   ami           = data.aws_ami.al2023.id
   instance_type = "t2.small"
