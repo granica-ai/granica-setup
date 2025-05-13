@@ -123,7 +123,7 @@ data "aws_ami" "al2023" {
 
   filter {
     name = "name"
-    values = ["al2023-ami-2023.6.20250211.0-kernel-6.1-x86_64"]
+    values = ["al2023-ami-2023*"]
   }
 
   filter {
@@ -134,6 +134,11 @@ data "aws_ami" "al2023" {
   filter {
     name   = "state"
     values = ["available"]
+  }
+
+  filter {
+    name   = "architecture"
+    values = ["x86_64"]
   }
 }
 
