@@ -26,9 +26,34 @@ resource "google_compute_instance" "vm_instance" {
   exec > >(tee /var/log/startup-script.log)
   exec 2>&1
 
-  echo "Starting minimal Granica setup"
+  echo "Starting Granica setup script"
 
-  # Reinstall the Granica RPM regardless of image contents
+  mkdir -p /home/${var.granica_username}/.project-n
+  log="/home/${var.granica_username}/setup-log"
+  echo "=== Setup log ===" > $log
+  if id ${var.granica_username} &>/dev/null; then
+    echo "User exists"
+  else
+    echo "User does not exist, creating..."
+    useradd ${var.granica_username}
+  fi
+  chown -R ${var.granica_username} /home/${var.granica_username}
+  echo $(ls -la /home/${var.granica_username})
+  echo $(ls -la /home/${var.granica_username}/.project-n)
+  echo '{"default_platform":"gcp"}' > /home/${var.granica_username}/.project-n/config
+  echo "vpc_id = \"${google_compute_network.vpc_network.id}\"" > /home/${var.granica_username}/config.tfvars
+  echo "private_subnet_ids = [\"${google_compute_subnetwork.private_subnet_1.id}\", \"${google_compute_subnetwork.private_subnet_2.id}\", \"${google_compute_subnetwork.private_subnet_3.id}\"]" >> /home/${var.granica_username}/config.tfvars
+  echo "public_subnet_ids = [\"${google_compute_subnetwork.public_subnet_1.id}\"]" >> /home/${var.granica_username}/config.tfvars
+  
+  # Check for network connectivity first 
+  echo "Checking if Google DNS is reachable..."
+  until ping -c 1 8.8.8.8; do
+    echo "Waiting for 8.8.8.8 to become reachable..."
+    sleep 1
+  done
+  echo "8.8.8.8 is reachable!"
+
+  # Reinstall the Granica RPM
   max_attempts=5
   attempt_num=1
   success=false
