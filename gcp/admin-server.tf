@@ -5,7 +5,8 @@ resource "google_compute_instance" "vm_instance" {
 
   boot_disk {
     initialize_params {
-      image = "projects/stone-bounty-249217/global/images/granica-centos-stream-9-updated"
+      image_family  = "granica-admin"
+      image_project = "granica-customer-resources"
     }
   }
 
