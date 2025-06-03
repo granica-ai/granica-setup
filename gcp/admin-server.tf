@@ -53,28 +53,27 @@ resource "google_compute_instance" "vm_instance" {
   done
   echo "8.8.8.8 is reachable!"
 
-  # Reinstall the Granica RPM
+  # Install Granica package with retry 
   max_attempts=5
   attempt_num=1
   success=false
-
-  while [ "$success" = false ] && [ $attempt_num -le $max_attempts ]; do
-    echo "Attempting to reinstall Granica package"
-    sudo yum -y reinstall ${var.package_url}
+  while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
+    echo "Trying download of Granica rpm"
+    sudo yum -y install ${var.package_url}
     if [ $? -eq 0 ]; then
-      echo "Granica package reinstall succeeded"
+      echo "Yum install succeeded"
       success=true
     else
-      echo "Attempt $attempt_num failed. Sleeping and retrying..."
+      echo "Attempt $attempt_num failed. Sleeping for 5 seconds and trying again..."
       sleep 5
       ((attempt_num++))
     fi
   done
-
+  
   if [ "$success" = false ]; then
-    echo "ERROR: Granica package reinstall failed after $max_attempts attempts"
+    echo "ERROR: Failed to install Granica package after $max_attempts attempts"
   fi
-
-  echo "Granica RPM reinstall complete"
+  
+  echo "Granica setup complete!"
   EOF
 }
