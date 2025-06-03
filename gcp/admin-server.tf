@@ -45,7 +45,7 @@ resource "google_compute_instance" "vm_instance" {
   echo "vpc_id = \"${google_compute_network.vpc_network.id}\"" > /home/${var.granica_username}/config.tfvars
   echo "private_subnet_ids = [\"${google_compute_subnetwork.private_subnet_1.id}\", \"${google_compute_subnetwork.private_subnet_2.id}\", \"${google_compute_subnetwork.private_subnet_3.id}\"]" >> /home/${var.granica_username}/config.tfvars
   echo "public_subnet_ids = [\"${google_compute_subnetwork.public_subnet_1.id}\"]" >> /home/${var.granica_username}/config.tfvars
-  
+
   # Check for network connectivity first 
   echo "Checking if Google DNS is reachable..."
   until ping -c 1 8.8.8.8; do
@@ -53,6 +53,9 @@ resource "google_compute_instance" "vm_instance" {
     sleep 1
   done
   echo "8.8.8.8 is reachable!"
+
+  echo "Running yum update to catch any recent patches ..."
+  sudo yum -y update
 
   # Install Granica package with retry 
   max_attempts=5
@@ -74,7 +77,7 @@ resource "google_compute_instance" "vm_instance" {
   if [ "$success" = false ]; then
     echo "ERROR: Failed to install Granica package after $max_attempts attempts"
   fi
-  
+
   echo "Granica setup complete!"
   EOF
 }
