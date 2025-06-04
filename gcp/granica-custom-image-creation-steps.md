@@ -105,19 +105,6 @@ gcloud compute instances delete centos-prep-vm \
   --zone=us-west2-a \
   --project=granica-customer-resources
 ```
-
----
-
-## Using This Image in Terraform
-
-```hcl
-boot_disk {
-  initialize_params {
-    image = "projects/granica-customer-resources/global/images/granica-admin-server"
-  }
-}
-```
-
 ---
 
 ## Maintenance Tips
