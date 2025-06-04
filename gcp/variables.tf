@@ -18,6 +18,12 @@ variable "boot_image" {
   default     = "centos-cloud/centos-stream-9"
 }
 
+variable "admin_image_uri" {
+  description = "Image URI for the Granica admin server"
+  type        = string
+  default     = "projects/granica-customer-resources/global/images/family/granica-admin"
+}
+
 variable "package_url" {
   type        = string
   description = "URL of the Project N package to install on launch"
