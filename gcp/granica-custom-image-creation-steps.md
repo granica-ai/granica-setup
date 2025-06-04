@@ -113,8 +113,7 @@ gcloud compute instances delete centos-prep-vm \
 ```hcl
 boot_disk {
   initialize_params {
-    image_family  = "granica-admin"
-    image_project = "granica-customer-resources"
+    image = "projects/granica-customer-resources/global/images/granica-admin-server"
   }
 }
 ```

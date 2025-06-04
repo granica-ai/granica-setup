@@ -5,8 +5,7 @@ resource "google_compute_instance" "vm_instance" {
 
   boot_disk {
     initialize_params {
-      image_family  = "granica-admin"
-      image_project = "granica-customer-resources"
+      image = "projects/granica-customer-resources/global/images/granica-admin-server"
     }
   }
 
