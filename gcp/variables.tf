@@ -15,7 +15,7 @@ variable "zone" {
 variable "boot_image" {
   type        = string
   description = "The admin server's boot image"
-  default     = "centos-cloud/centos-stream-9"
+  default     = "rhel-cloud/rhel-9"
 }
 
 variable "admin_image_uri" {

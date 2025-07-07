@@ -53,8 +53,8 @@ resource "google_compute_instance" "vm_instance" {
   done
   echo "8.8.8.8 is reachable!"
 
-  echo "Running yum update to catch any recent patches ..."
-  sudo yum -y update
+  echo "Running dnf update to catch any recent patches ..."
+  sudo dnf -y update
 
   # Install Granica package with retry 
   max_attempts=5
@@ -62,9 +62,9 @@ resource "google_compute_instance" "vm_instance" {
   success=false
   while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
     echo "Trying download of Granica rpm"
-    sudo yum -y install ${var.package_url}
+    sudo dnf -y install ${var.package_url}
     if [ $? -eq 0 ]; then
-      echo "Yum install succeeded"
+      echo "DNF install succeeded"
       success=true
     else
       echo "Attempt $attempt_num failed. Sleeping for 5 seconds and trying again..."
