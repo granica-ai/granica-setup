@@ -9,33 +9,33 @@ terraform {
 }
 
 resource "google_compute_network" "vpc_network" {
-  name                    = "granica-vpc"
+  name                    = "granica-vpc-${var.server_name}"
   auto_create_subnetworks = false
 }
 
 resource "google_compute_subnetwork" "private_subnet_1" {
-  name          = "granica-private-subnet-1"
+  name          = "granica-vpc-${var.server_name}-private-subnet-1"
   ip_cidr_range = "10.47.1.0/24"
   region        = var.region
   network       = google_compute_network.vpc_network.self_link
 }
 
 resource "google_compute_subnetwork" "private_subnet_2" {
-  name          = "granica-private-subnet-2"
+  name          = "granica-vpc-${var.server_name}-private-subnet-2"
   ip_cidr_range = "10.47.2.0/24"
   region        = var.region
   network       = google_compute_network.vpc_network.self_link
 }
 
 resource "google_compute_subnetwork" "private_subnet_3" {
-  name          = "granica-private-subnet-3"
+  name          = "granica-vpc-${var.server_name}-private-subnet-3"
   ip_cidr_range = "10.47.3.0/24"
   region        = var.region
   network       = google_compute_network.vpc_network.self_link
 }
 
 resource "google_compute_subnetwork" "public_subnet_1" {
-  name                     = "granica-public-subnet-1"
+  name                     = "granica-vpc-${var.server_name}-public-subnet-1"
   ip_cidr_range            = "10.47.4.0/24"
   region                   = var.region
   network                  = google_compute_network.vpc_network.self_link
@@ -44,7 +44,7 @@ resource "google_compute_subnetwork" "public_subnet_1" {
 }
 
 resource "google_compute_router" "nat_router" {
-  name    = "nat-router"
+  name    = "granica-vpc-${var.server_name}-nat-router"
   network = google_compute_network.vpc_network.name
   region  = var.region
 }
@@ -58,8 +58,8 @@ resource "google_compute_router_nat" "nat" {
 }
 
 resource "google_service_account" "vm_service_account" {
-  account_id   = "admin-server-sa"
-  display_name = "Granica Admin Server Service Account"
+  account_id   = "granica-admin-server-${var.server_name}-sa"
+  display_name = "Granica Admin Server Service Account - ${var.server_name}"
 }
 
 resource "google_project_iam_member" "project_permissions" {
@@ -80,7 +80,7 @@ resource "google_project_iam_member" "project_permissions" {
 }
 
 resource "google_compute_firewall" "allow_ingress_from_iap" {
-  name    = "allow-ingress-from-iap"
+  name    = "granica-vpc-${var.server_name}-allow-ingress-from-iap"
   network = google_compute_network.vpc_network.name
 
   direction = "INGRESS"
