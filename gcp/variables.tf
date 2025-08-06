@@ -45,4 +45,9 @@ variable "server_name" {
   description = "Suffix for the admin server instance name"
   type        = string
   default     = "dev"
+  
+  validation {
+    condition     = length(var.server_name) <= 15
+    error_message = "server_name must be 15 characters or less to avoid GCP naming limits."
+  }
 }

@@ -58,7 +58,7 @@ resource "google_compute_router_nat" "nat" {
 }
 
 resource "google_service_account" "vm_service_account" {
-  account_id   = "granica-admin-server-${var.server_name}-sa"
+  account_id   = "granica-admin-${var.server_name}-sa"
   display_name = "Granica Admin Server Service Account - ${var.server_name}"
 }
 
