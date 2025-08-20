@@ -44,6 +44,8 @@ resource "google_compute_instance" "vm_instance" {
   echo "vpc_id = \"${google_compute_network.vpc_network.id}\"" > /home/${var.granica_username}/config.tfvars
   echo "private_subnet_ids = [\"${google_compute_subnetwork.private_subnet_1.id}\", \"${google_compute_subnetwork.private_subnet_2.id}\", \"${google_compute_subnetwork.private_subnet_3.id}\"]" >> /home/${var.granica_username}/config.tfvars
   echo "public_subnet_ids = [\"${google_compute_subnetwork.public_subnet_1.id}\"]" >> /home/${var.granica_username}/config.tfvars
+  echo "admin_server_sa_email = \"${google_service_account.vm_service_account.email}\"" >> /home/${var.granica_username}/config.tfvars
+  echo "server_name = \"${var.server_name}\"" >> /home/${var.granica_username}/config.tfvars
 
   # Check for network connectivity first 
   echo "Checking if Google DNS is reachable..."
