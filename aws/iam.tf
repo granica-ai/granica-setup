@@ -141,6 +141,7 @@ data "aws_iam_policy_document" "deploy" {
       "iam:PutRolePermissionsBoundary",
       "iam:PutRolePolicy",
       "iam:RemoveRoleFromInstanceProfile",
+      "iam:SimulatePrincipalPolicy",
       "iam:TagRole",
       "iam:UntagRole",
       "iam:TagPolicy",
