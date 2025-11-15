@@ -141,6 +141,7 @@ data "aws_iam_policy_document" "deploy" {
       "iam:PutRolePermissionsBoundary",
       "iam:PutRolePolicy",
       "iam:RemoveRoleFromInstanceProfile",
+      "iam:SimulatePrincipalPolicy",
       "iam:TagRole",
       "iam:UntagRole",
       "iam:TagPolicy",
@@ -154,6 +155,7 @@ data "aws_iam_policy_document" "deploy" {
     ]
     resources = [
       "arn:aws:iam::*:instance-profile/project-n-*",
+      "arn:aws:iam::*:instance-profile/granica-*",
       "arn:aws:iam::*:policy/project-n-*",
       "arn:aws:iam::*:role/project-n-*",
       "arn:aws:iam::*:role/granica-*",
