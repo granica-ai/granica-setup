@@ -15,7 +15,7 @@ git clone https://github.com/tfutils/tfenv.git ~/.tfenv
 mkdir ~/bin
 ln -s ~/.tfenv/bin/* ~/bin/
 export PATH="$HOME/.tfenv/bin:$PATH"
-tfenv install
+tfenv install 1.13.4
 tfenv use 1.13.4
 terraform --version
 git clone https://github.com/granica-ai/granica-setup.git
