@@ -1,4 +1,6 @@
 terraform {
+  required_version = "1.13.4"
+
   backend "s3" {
     # These are dev defaults that can be overridden by backend.conf in production
     bucket = "kry-ci-granica-setup-terraform-state"
