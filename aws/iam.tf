@@ -157,6 +157,7 @@ data "aws_iam_policy_document" "deploy" {
       "arn:aws:iam::*:instance-profile/project-n-*",
       "arn:aws:iam::*:instance-profile/granica-*",
       "arn:aws:iam::*:policy/project-n-*",
+      "arn:aws:iam::*:policy/granica-*",
       "arn:aws:iam::*:role/project-n-*",
       "arn:aws:iam::*:role/granica-*",
       "arn:aws:iam::*:oidc-provider/oidc.eks.*.amazonaws.com",
