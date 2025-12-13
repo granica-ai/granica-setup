@@ -284,6 +284,31 @@ data "aws_iam_policy_document" "deploy" {
       "arn:aws:logs:*:*:log-group::log-stream*"
     ]
   }
+
+  statement {
+    sid    = "EFS"
+    effect = "Allow"
+    actions = [
+      "elasticfilesystem:CreateFileSystem",
+      "elasticfilesystem:CreateMountTarget",
+      "elasticfilesystem:CreateTags",
+      "elasticfilesystem:DeleteFileSystem",
+      "elasticfilesystem:DeleteMountTarget",
+      "elasticfilesystem:DeleteTags",
+      "elasticfilesystem:DescribeFileSystems",
+      "elasticfilesystem:DescribeLifecycleConfiguration",
+      "elasticfilesystem:DescribeMountTargets",
+      "elasticfilesystem:DescribeMountTargetSecurityGroups",
+      "elasticfilesystem:ModifyMountTargetSecurityGroups",
+      "elasticfilesystem:PutLifecycleConfiguration",
+      "elasticfilesystem:TagResource",
+      "elasticfilesystem:UntagResource",
+      "elasticfilesystem:UpdateFileSystem"
+    ]
+    resources = [
+      "arn:aws:elasticfilesystem:*:*:file-system/*"
+    ]
+  }
 }
 
 data "aws_iam_policy_document" "emr" {
