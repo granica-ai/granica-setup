@@ -122,7 +122,7 @@ data "aws_ami" "al2023" {
   most_recent = true
 
   filter {
-    name = "name"
+    name   = "name"
     values = ["al2023-ami-2023*"]
   }
 
