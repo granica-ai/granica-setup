@@ -44,6 +44,13 @@ resource "aws_iam_policy" "emr" {
   policy = data.aws_iam_policy_document.emr.json
 }
 
+resource "aws_iam_policy" "efs" {
+  count = var.spark_enabled ? 1 : 0
+
+  name   = "project-n-admin-efs-permissions-${random_id.random_suffix.hex}"
+  policy = data.aws_iam_policy_document.efs.json
+}
+
 resource "aws_iam_role_policy_attachment" "admin-deploy" {
   policy_arn = aws_iam_policy.deploy.arn
   role       = aws_iam_role.admin.id
@@ -60,6 +67,13 @@ resource "aws_iam_role_policy_attachment" "admin-emr" {
   count = var.deploy_emr ? 1 : 0
 
   policy_arn = aws_iam_policy.emr[0].arn
+  role       = aws_iam_role.admin.name
+}
+
+resource "aws_iam_role_policy_attachment" "admin-efs" {
+  count = var.spark_enabled ? 1 : 0
+
+  policy_arn = aws_iam_policy.efs[0].arn
   role       = aws_iam_role.admin.name
 }
 
@@ -284,31 +298,6 @@ data "aws_iam_policy_document" "deploy" {
       "arn:aws:logs:*:*:log-group::log-stream*"
     ]
   }
-
-  statement {
-    sid    = "EFS"
-    effect = "Allow"
-    actions = [
-      "elasticfilesystem:CreateFileSystem",
-      "elasticfilesystem:CreateMountTarget",
-      "elasticfilesystem:CreateTags",
-      "elasticfilesystem:DeleteFileSystem",
-      "elasticfilesystem:DeleteMountTarget",
-      "elasticfilesystem:DeleteTags",
-      "elasticfilesystem:DescribeFileSystems",
-      "elasticfilesystem:DescribeLifecycleConfiguration",
-      "elasticfilesystem:DescribeMountTargets",
-      "elasticfilesystem:DescribeMountTargetSecurityGroups",
-      "elasticfilesystem:ModifyMountTargetSecurityGroups",
-      "elasticfilesystem:PutLifecycleConfiguration",
-      "elasticfilesystem:TagResource",
-      "elasticfilesystem:UntagResource",
-      "elasticfilesystem:UpdateFileSystem"
-    ]
-    resources = [
-      "arn:aws:elasticfilesystem:*:*:file-system/*"
-    ]
-  }
 }
 
 data "aws_iam_policy_document" "emr" {
@@ -384,5 +373,32 @@ data "aws_iam_policy_document" "vpc" {
       "ec2:AcceptVpcPeeringConnection",
     ]
     resources = ["*"]
+  }
+}
+
+data "aws_iam_policy_document" "efs" {
+  statement {
+    sid    = "EFS"
+    effect = "Allow"
+    actions = [
+      "elasticfilesystem:CreateFileSystem",
+      "elasticfilesystem:CreateMountTarget",
+      "elasticfilesystem:CreateTags",
+      "elasticfilesystem:DeleteFileSystem",
+      "elasticfilesystem:DeleteMountTarget",
+      "elasticfilesystem:DeleteTags",
+      "elasticfilesystem:DescribeFileSystems",
+      "elasticfilesystem:DescribeLifecycleConfiguration",
+      "elasticfilesystem:DescribeMountTargets",
+      "elasticfilesystem:DescribeMountTargetSecurityGroups",
+      "elasticfilesystem:ModifyMountTargetSecurityGroups",
+      "elasticfilesystem:PutLifecycleConfiguration",
+      "elasticfilesystem:TagResource",
+      "elasticfilesystem:UntagResource",
+      "elasticfilesystem:UpdateFileSystem"
+    ]
+    resources = [
+      "arn:aws:elasticfilesystem:*:*:file-system/*"
+    ]
   }
 }

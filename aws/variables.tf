@@ -19,6 +19,11 @@ variable "deploy_emr" {
   default = false
 }
 
+variable "spark_enabled" {
+  type    = bool
+  default = false
+}
+
 // Place admin-server in public subnet with a public IP
 variable "public_ip_enabled" {
   type    = bool
