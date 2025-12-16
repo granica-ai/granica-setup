@@ -19,7 +19,7 @@ variable "deploy_emr" {
   default = false
 }
 
-variable "spark_enabled" {
+variable "airflow_enabled" {
   type    = bool
   default = false
 }

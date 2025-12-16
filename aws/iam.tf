@@ -45,7 +45,7 @@ resource "aws_iam_policy" "emr" {
 }
 
 resource "aws_iam_policy" "efs" {
-  count = var.spark_enabled ? 1 : 0
+  count = var.airflow_enabled ? 1 : 0
 
   name   = "project-n-admin-efs-permissions-${random_id.random_suffix.hex}"
   policy = data.aws_iam_policy_document.efs.json
@@ -71,7 +71,7 @@ resource "aws_iam_role_policy_attachment" "admin-emr" {
 }
 
 resource "aws_iam_role_policy_attachment" "admin-efs" {
-  count = var.spark_enabled ? 1 : 0
+  count = var.airflow_enabled ? 1 : 0
 
   policy_arn = aws_iam_policy.efs[0].arn
   role       = aws_iam_role.admin.name
