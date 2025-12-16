@@ -29,6 +29,7 @@ Create `terraform.tfvars` in this directory. A sample is provided in `terraform.
 aws_region  = "your-region"              # Region where admin server and Granica will be deployed. E.g. us-east-1.
 package_url = "https://granica.ai/granica.rpm"
 server_name = "my-server"                # Optional: suffix for admin server name (defaults to "dev")
+airflow_enabled = true                   # Optional: enables EFS permissions for Airflow deployment (defaults to false)
 ```
 
 Create `backend.conf` in this directory, making sure to set the key to a name unique to the admin server and tfstate. A sample is provided in `backend.conf.sample` and below:
