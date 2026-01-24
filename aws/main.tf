@@ -216,6 +216,9 @@ echo 'private_subnet_ids = ${jsonencode(module.vpc.private_subnets)}' >> /home/e
 echo 'public_subnet_ids  = ${jsonencode(module.vpc.public_subnets)}' >> /home/ec2-user/config.tfvars
 echo 'subnet_az_ids      = ${jsonencode(data.aws_availability_zones.available.zone_ids)}' >> /home/ec2-user/config.tfvars
 echo 'multi_az           = true' >> /home/ec2-user/config.tfvars
+echo "admin_server_name  = \"granica-admin-server-${var.server_name}\"" >> /home/ec2-user/config.tfvars
+echo "owner_id           = \"${data.aws_caller_identity.current.user_id}\"" >> /home/ec2-user/config.tfvars
+echo "owner_arn          = \"${data.aws_caller_identity.current.arn}\"" >> /home/ec2-user/config.tfvars
 chown ec2-user:ec2-user /home/ec2-user/config.tfvars
 
 max_attempts=5
