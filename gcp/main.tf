@@ -1,12 +1,45 @@
-provider "google" {
-  project = var.project_id
-  region  = var.region
-}
-
 terraform {
   required_version = "1.13.4"
 
   backend "gcs" {
+  }
+}
+
+# Provider alias for getting identity (used by data source)
+provider "google" {
+  alias   = "identity"
+  project = var.project_id
+  region  = var.region
+}
+
+# Get current GCP caller identity for owner_id
+data "google_client_openid_userinfo" "me" {
+  provider = google.identity
+}
+
+# Sanitize email for GCP label constraints (lowercase, alphanumeric, underscores, dashes only, max 63 chars)
+locals {
+  sanitized_owner_id = substr(
+    replace(
+      replace(
+        lower(data.google_client_openid_userinfo.me.email),
+        "@", "-at-"
+      ),
+      ".", "-"
+    ),
+    0,
+    63
+  )
+}
+
+# Main provider with default_labels
+provider "google" {
+  project = var.project_id
+  region  = var.region
+
+  default_labels = {
+    admin_server_name = "granica-admin-${var.server_name}"
+    owner_id          = local.sanitized_owner_id
   }
 }
 
@@ -42,7 +75,6 @@ resource "google_compute_subnetwork" "public_subnet_1" {
   region                   = var.region
   network                  = google_compute_network.vpc_network.self_link
   private_ip_google_access = false
-
 }
 
 resource "google_compute_router" "nat_router" {

@@ -24,6 +24,29 @@ terraform {
   }
 }
 
+# Provider alias for getting identity (used by data source)
+provider "aws" {
+  alias  = "identity"
+  region = var.aws_region
+}
+
+# Get current AWS caller identity for default tags
+data "aws_caller_identity" "current" {
+  provider = aws.identity
+}
+
+locals {
+  default_tags = {
+    admin_server_name = "granica-admin-server-${var.server_name}"
+    owner_id          = data.aws_caller_identity.current.user_id
+    owner_arn         = data.aws_caller_identity.current.arn
+  }
+}
+
 provider "aws" {
   region = var.aws_region
+
+  default_tags {
+    tags = local.default_tags
+  }
 }
