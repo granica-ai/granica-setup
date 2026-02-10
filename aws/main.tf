@@ -3,8 +3,20 @@ data "aws_availability_zones" "available" {
   state = "available"
 }
 
+# Optional: existing VPC and route tables when existing_vpc_id is set
+data "aws_vpc" "existing" {
+  count = length(var.existing_vpc_id) > 0 ? 1 : 0
+  id    = var.existing_vpc_id
+}
+
+data "aws_route_tables" "existing" {
+  count  = length(var.existing_vpc_id) > 0 ? 1 : 0
+  vpc_id = var.existing_vpc_id
+}
+
 module "vpc" {
-  source  = "terraform-aws-modules/vpc/aws"
+  count  = length(var.existing_vpc_id) > 0 ? 0 : 1
+  source = "terraform-aws-modules/vpc/aws"
   version = "5.7.1"
 
   name = "granica-vpc-${var.server_name}"
@@ -41,11 +53,20 @@ module "vpc" {
 }
 
 locals {
-  target_subnet_id = var.public_ip_enabled ? module.vpc.public_subnets[0] : module.vpc.private_subnets[0]
+  use_existing_vpc         = length(var.existing_vpc_id) > 0
+  create_instance_connect  = length(var.existing_eice_security_group_id) == 0
+  vpc_id                   = local.use_existing_vpc ? var.existing_vpc_id : module.vpc[0].vpc_id
+  vpc_cidr_block           = local.use_existing_vpc ? data.aws_vpc.existing[0].cidr_block : module.vpc[0].vpc_cidr_block
+  private_subnet_ids        = local.use_existing_vpc ? var.existing_private_subnet_ids : module.vpc[0].private_subnets
+  public_subnet_ids         = local.use_existing_vpc ? var.existing_public_subnet_ids : module.vpc[0].public_subnets
+  route_table_ids           = local.use_existing_vpc ? data.aws_route_tables.existing[0].ids : concat(module.vpc[0].public_route_table_ids, module.vpc[0].private_route_table_ids)
+  target_subnet_id          = var.public_ip_enabled ? local.public_subnet_ids[0] : local.private_subnet_ids[0]
+  create_s3_vpc_endpoint    = coalesce(var.create_s3_vpc_endpoint, !local.use_existing_vpc)
 }
 
 resource "aws_security_group" "ec2_instance_connect" {
-  vpc_id = module.vpc.vpc_id
+  count  = local.create_instance_connect ? 1 : 0
+  vpc_id = local.vpc_id
 
   egress {
     from_port   = 0
@@ -56,33 +77,29 @@ resource "aws_security_group" "ec2_instance_connect" {
 }
 
 resource "aws_ec2_instance_connect_endpoint" "main" {
-  # for_each = {
-  #   for subnet_id in local.private_subnet_ids : subnet_id => subnet_id
-  # }
+  count = local.create_instance_connect ? 1 : 0
   # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-using-eice.html#ec2-instance-connect-endpoint-limitations
-  # this allows the instance we're connecting to be in the different VPC than the ec2 instance connect endpoint
   preserve_client_ip = false
   subnet_id          = local.target_subnet_id
-  security_group_ids = [aws_security_group.ec2_instance_connect.id]
+  security_group_ids = [aws_security_group.ec2_instance_connect[0].id]
 }
 
-# Add an S3 VPC endpoint
+# S3 Gateway VPC endpoint; skip when VPC already has one (avoids RouteAlreadyExists) or create_s3_vpc_endpoint = false
 resource "aws_vpc_endpoint" "s3" {
-  vpc_id            = module.vpc.vpc_id
+  count = local.create_s3_vpc_endpoint ? 1 : 0
+
+  vpc_id            = local.vpc_id
   service_name      = "com.amazonaws.${var.aws_region}.s3"
   vpc_endpoint_type = "Gateway"
 
-  route_table_ids = concat(
-    module.vpc.public_route_table_ids,
-    module.vpc.private_route_table_ids
-  )
+  route_table_ids = local.route_table_ids
   tags = {
     Name = "granica-vpc-s3-endpoint"
   }
 }
 
 resource "aws_security_group" "admin_server" {
-  vpc_id = module.vpc.vpc_id
+  vpc_id = local.vpc_id
 
   egress {
     from_port   = 0
@@ -91,18 +108,31 @@ resource "aws_security_group" "admin_server" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  ingress {
-    from_port       = 0
-    to_port         = 0
-    protocol        = "-1"
-    security_groups = [aws_security_group.ec2_instance_connect.id]
+  dynamic "ingress" {
+    for_each = local.create_instance_connect ? [1] : []
+    content {
+      from_port       = 0
+      to_port         = 0
+      protocol        = "-1"
+      security_groups = [aws_security_group.ec2_instance_connect[0].id]
+    }
+  }
+
+  dynamic "ingress" {
+    for_each = local.create_instance_connect ? [] : [1]
+    content {
+      from_port       = 0
+      to_port         = 0
+      protocol        = "-1"
+      security_groups = [var.existing_eice_security_group_id]
+    }
   }
 
   ingress {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = [module.vpc.vpc_cidr_block]
+    cidr_blocks = [local.vpc_cidr_block]
   }
 
 
@@ -143,9 +173,10 @@ data "aws_ami" "al2023" {
 }
 
 resource "aws_instance" "admin_server" {
+  # Only wait for EIC/S3 endpoint when we create them; no blocker when skipped
   depends_on = [
     aws_ec2_instance_connect_endpoint.main,
-    module.vpc
+    aws_vpc_endpoint.s3
   ]
   ami           = data.aws_ami.al2023.id
   instance_type = "t2.small"
@@ -211,9 +242,9 @@ else
 fi
 
 echo "Place resource ids at /home/ec2-user/config.tfvars"
-echo "vpc_id             = \"${module.vpc.vpc_id}\"" > /home/ec2-user/config.tfvars
-echo 'private_subnet_ids = ${jsonencode(module.vpc.private_subnets)}' >> /home/ec2-user/config.tfvars
-echo 'public_subnet_ids  = ${jsonencode(module.vpc.public_subnets)}' >> /home/ec2-user/config.tfvars
+echo "vpc_id             = \"${local.vpc_id}\"" > /home/ec2-user/config.tfvars
+echo 'private_subnet_ids = ${jsonencode(local.private_subnet_ids)}' >> /home/ec2-user/config.tfvars
+echo 'public_subnet_ids  = ${jsonencode(local.public_subnet_ids)}' >> /home/ec2-user/config.tfvars
 echo 'subnet_az_ids      = ${jsonencode(data.aws_availability_zones.available.zone_ids)}' >> /home/ec2-user/config.tfvars
 echo 'multi_az           = true' >> /home/ec2-user/config.tfvars
 echo "admin_server_name  = \"granica-admin-server-${var.server_name}\"" >> /home/ec2-user/config.tfvars

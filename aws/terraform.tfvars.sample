@@ -6,3 +6,12 @@ package_url = "rpm_url"
 
 # Optional: suffix for the admin server instance name (defaults to "dev")
 server_name = "dev"
+
+# --- Optional: existing VPC (set existing_vpc_id + subnets; when empty, a new VPC is created) ---
+# existing_vpc_id            = "vpc-xxxxxxxxx"
+# existing_private_subnet_ids = ["subnet-aaa", "subnet-bbb"]
+# existing_public_subnet_ids  = []   # Required when public_ip_enabled = true
+
+# --- Optional: skip creating resources that may already exist (avoids quota/RouteAlreadyExists errors) ---
+# create_s3_vpc_endpoint        = false   # Set false if VPC already has S3 Gateway endpoint
+# existing_eice_security_group_id = "sg-xxx"   # When set, no EIC is created; admin server allows this SG (existing EIC or SSM)
