@@ -38,7 +38,15 @@ existing_vpc_id           = "vpc-xxxxxxxxx"
 existing_private_subnet_ids = ["subnet-aaa", "subnet-bbb"]
 existing_public_subnet_ids  = ["subnet-ccc"]   # Required only if public_ip_enabled = true
 ```
-The admin server is placed in the first private (or public, if `public_ip_enabled`) subnet. An S3 Gateway VPC endpoint is created and associated with all route tables in the VPC.
+The admin server is placed in the first private (or public, if `public_ip_enabled`) subnet. By default, an S3 Gateway VPC endpoint is *not* created when using an existing VPC (to avoid `RouteAlreadyExists` if the VPC already has one). Set `create_s3_vpc_endpoint = true` to create it anyway.
+
+**Avoiding EIC quota / existing S3 endpoint:** If you hit "maximum number of Instance Connect Endpoints" or "RouteAlreadyExists" for the S3 endpoint, set:
+```hcl
+create_instance_connect_endpoint = false
+existing_eice_security_group_id  = "sg-xxxxxxxxx"   # SG of your existing EIC (or SSM)
+# and/or
+create_s3_vpc_endpoint = false   # if the VPC already has an S3 Gateway endpoint
+```
 
 Create `backend.conf` in this directory, making sure to set the key to a name unique to the admin server and tfstate. A sample is provided in `backend.conf.sample` and below:
 ```hcl

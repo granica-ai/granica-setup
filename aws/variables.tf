@@ -77,3 +77,28 @@ variable "existing_public_subnet_ids" {
     error_message = "existing_public_subnet_ids must have at least one subnet when use_existing_vpc and public_ip_enabled are both true."
   }
 }
+
+# --- Optional: skip creating resources that may already exist ---
+
+variable "create_s3_vpc_endpoint" {
+  type        = bool
+  default     = null
+  description = "Set to false to skip creating the S3 Gateway VPC endpoint (e.g. VPC already has one; avoids RouteAlreadyExists). When null, defaults to false if use_existing_vpc is true, else true."
+}
+
+variable "create_instance_connect_endpoint" {
+  type        = bool
+  default     = true
+  description = "Set to false to skip creating an EC2 Instance Connect Endpoint (e.g. subnet quota reached or you use an existing EIC). When false, set existing_eice_security_group_id so the admin server allows ingress from that SG."
+}
+
+variable "existing_eice_security_group_id" {
+  type        = string
+  default     = ""
+  description = "Security group ID of an existing EC2 Instance Connect Endpoint (or SSM). Required when create_instance_connect_endpoint is false so the admin server allows connectivity."
+
+  validation {
+    condition     = var.create_instance_connect_endpoint || length(var.existing_eice_security_group_id) > 0
+    error_message = "existing_eice_security_group_id must be set when create_instance_connect_endpoint is false."
+  }
+}

@@ -53,18 +53,21 @@ module "vpc" {
 }
 
 locals {
-  vpc_id             = var.use_existing_vpc ? var.existing_vpc_id : module.vpc[0].vpc_id
-  vpc_cidr_block     = var.use_existing_vpc ? data.aws_vpc.existing[0].cidr_block : module.vpc[0].vpc_cidr_block
-  private_subnet_ids = var.use_existing_vpc ? var.existing_private_subnet_ids : module.vpc[0].private_subnets
-  public_subnet_ids  = var.use_existing_vpc ? var.existing_public_subnet_ids : module.vpc[0].public_subnets
+  vpc_id              = var.use_existing_vpc ? var.existing_vpc_id : module.vpc[0].vpc_id
+  vpc_cidr_block      = var.use_existing_vpc ? data.aws_vpc.existing[0].cidr_block : module.vpc[0].vpc_cidr_block
+  private_subnet_ids  = var.use_existing_vpc ? var.existing_private_subnet_ids : module.vpc[0].private_subnets
+  public_subnet_ids   = var.use_existing_vpc ? var.existing_public_subnet_ids : module.vpc[0].public_subnets
   route_table_ids = var.use_existing_vpc ? data.aws_route_tables.existing[0].ids : concat(
     module.vpc[0].public_route_table_ids,
     module.vpc[0].private_route_table_ids
   )
   target_subnet_id = var.public_ip_enabled ? local.public_subnet_ids[0] : local.private_subnet_ids[0]
+  # Default: do not create S3 endpoint when using existing VPC (avoids RouteAlreadyExists if VPC already has one)
+  create_s3_vpc_endpoint = coalesce(var.create_s3_vpc_endpoint, !var.use_existing_vpc)
 }
 
 resource "aws_security_group" "ec2_instance_connect" {
+  count  = var.create_instance_connect_endpoint ? 1 : 0
   vpc_id = local.vpc_id
 
   egress {
@@ -76,18 +79,17 @@ resource "aws_security_group" "ec2_instance_connect" {
 }
 
 resource "aws_ec2_instance_connect_endpoint" "main" {
-  # for_each = {
-  #   for subnet_id in local.private_subnet_ids : subnet_id => subnet_id
-  # }
+  count = var.create_instance_connect_endpoint ? 1 : 0
   # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-using-eice.html#ec2-instance-connect-endpoint-limitations
-  # this allows the instance we're connecting to be in the different VPC than the ec2 instance connect endpoint
   preserve_client_ip = false
   subnet_id          = local.target_subnet_id
-  security_group_ids = [aws_security_group.ec2_instance_connect.id]
+  security_group_ids = [aws_security_group.ec2_instance_connect[0].id]
 }
 
-# Add an S3 VPC endpoint
+# S3 Gateway VPC endpoint; skip when VPC already has one (avoids RouteAlreadyExists) or create_s3_vpc_endpoint = false
 resource "aws_vpc_endpoint" "s3" {
+  count = local.create_s3_vpc_endpoint ? 1 : 0
+
   vpc_id            = local.vpc_id
   service_name      = "com.amazonaws.${var.aws_region}.s3"
   vpc_endpoint_type = "Gateway"
@@ -108,11 +110,24 @@ resource "aws_security_group" "admin_server" {
     cidr_blocks = ["0.0.0.0/0"]
   }
 
-  ingress {
-    from_port       = 0
-    to_port         = 0
-    protocol        = "-1"
-    security_groups = [aws_security_group.ec2_instance_connect.id]
+  dynamic "ingress" {
+    for_each = var.create_instance_connect_endpoint ? [1] : []
+    content {
+      from_port       = 0
+      to_port         = 0
+      protocol        = "-1"
+      security_groups = [aws_security_group.ec2_instance_connect[0].id]
+    }
+  }
+
+  dynamic "ingress" {
+    for_each = var.create_instance_connect_endpoint ? [] : [1]
+    content {
+      from_port       = 0
+      to_port         = 0
+      protocol        = "-1"
+      security_groups = [var.existing_eice_security_group_id]
+    }
   }
 
   ingress {
@@ -160,6 +175,7 @@ data "aws_ami" "al2023" {
 }
 
 resource "aws_instance" "admin_server" {
+  # Only wait for EIC/S3 endpoint when we create them; no blocker when skipped
   depends_on = [
     aws_ec2_instance_connect_endpoint.main,
     aws_vpc_endpoint.s3

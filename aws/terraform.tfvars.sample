@@ -12,3 +12,8 @@ server_name = "dev"
 # existing_vpc_id          = "vpc-xxxxxxxxx"
 # existing_private_subnet_ids = ["subnet-aaa", "subnet-bbb"]
 # existing_public_subnet_ids  = []   # Required when public_ip_enabled = true
+
+# --- Optional: skip creating resources that may already exist (avoids quota/RouteAlreadyExists errors) ---
+# create_s3_vpc_endpoint = false              # Set false if VPC already has S3 Gateway endpoint
+# create_instance_connect_endpoint = false    # Set false if subnet EIC quota reached or using existing EIC
+# existing_eice_security_group_id = "sg-xxx"  # Required when create_instance_connect_endpoint = false
