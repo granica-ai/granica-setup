@@ -6,3 +6,9 @@ package_url = "rpm_url"
 
 # Optional: suffix for the admin server instance name (defaults to "dev")
 server_name = "dev"
+
+# --- Optional: deploy into an existing VPC (default: create new VPC) ---
+# use_existing_vpc         = false
+# existing_vpc_id          = "vpc-xxxxxxxxx"
+# existing_private_subnet_ids = ["subnet-aaa", "subnet-bbb"]
+# existing_public_subnet_ids  = []   # Required when public_ip_enabled = true

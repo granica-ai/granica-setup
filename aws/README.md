@@ -31,6 +31,15 @@ package_url = "https://granica.ai/granica.rpm"
 server_name = "my-server"                # Optional: suffix for admin server name (defaults to "dev")
 ```
 
+**Existing VPC (optional):** To deploy the admin server into an existing VPC instead of creating a new one, set:
+```hcl
+use_existing_vpc          = true
+existing_vpc_id           = "vpc-xxxxxxxxx"
+existing_private_subnet_ids = ["subnet-aaa", "subnet-bbb"]
+existing_public_subnet_ids  = ["subnet-ccc"]   # Required only if public_ip_enabled = true
+```
+The admin server is placed in the first private (or public, if `public_ip_enabled`) subnet. An S3 Gateway VPC endpoint is created and associated with all route tables in the VPC.
+
 Create `backend.conf` in this directory, making sure to set the key to a name unique to the admin server and tfstate. A sample is provided in `backend.conf.sample` and below:
 ```hcl
 bucket = "kry-ci-granica-setup-terraform-state"

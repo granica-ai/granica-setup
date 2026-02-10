@@ -31,7 +31,7 @@ resource "aws_iam_policy" "deploy" {
 }
 
 resource "aws_iam_policy" "vpc" {
-  count = var.manage_vpc ? 1 : 0
+  count = var.manage_vpc && !var.use_existing_vpc ? 1 : 0
 
   name   = "project-n-admin-vpc-permissions-${random_id.random_suffix.hex}"
   policy = data.aws_iam_policy_document.vpc.json
@@ -50,7 +50,7 @@ resource "aws_iam_role_policy_attachment" "admin-deploy" {
 }
 
 resource "aws_iam_role_policy_attachment" "admin-vpc" {
-  count = var.manage_vpc ? 1 : 0
+  count = var.manage_vpc && !var.use_existing_vpc ? 1 : 0
 
   policy_arn = aws_iam_policy.vpc[0].arn
   role       = aws_iam_role.admin.name
