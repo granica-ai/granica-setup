@@ -31,21 +31,19 @@ package_url = "https://granica.ai/granica.rpm"
 server_name = "my-server"                # Optional: suffix for admin server name (defaults to "dev")
 ```
 
-**Existing VPC (optional):** To deploy the admin server into an existing VPC instead of creating a new one, set:
+**Existing VPC (optional):** Set `existing_vpc_id` (and subnets) to deploy into an existing VPC instead of creating a new one:
 ```hcl
-use_existing_vpc          = true
-existing_vpc_id           = "vpc-xxxxxxxxx"
-existing_private_subnet_ids = ["subnet-aaa", "subnet-bbb"]
-existing_public_subnet_ids  = ["subnet-ccc"]   # Required only if public_ip_enabled = true
+existing_vpc_id             = "vpc-xxxxxxxxx"
+existing_private_subnet_ids  = ["subnet-aaa", "subnet-bbb"]
+existing_public_subnet_ids   = ["subnet-ccc"]   # Required only if public_ip_enabled = true
 ```
-The admin server is placed in the first private (or public, if `public_ip_enabled`) subnet. By default, an S3 Gateway VPC endpoint is *not* created when using an existing VPC (to avoid `RouteAlreadyExists` if the VPC already has one). Set `create_s3_vpc_endpoint = true` to create it anyway.
+The admin server is placed in the first private (or public, if `public_ip_enabled`) subnet. By default, an S3 Gateway VPC endpoint is *not* created when `existing_vpc_id` is set (to avoid `RouteAlreadyExists`). Set `create_s3_vpc_endpoint = true` to create it anyway.
 
-**Avoiding EIC quota / existing S3 endpoint:** If you hit "maximum number of Instance Connect Endpoints" or "RouteAlreadyExists" for the S3 endpoint, set:
+**Avoiding EIC quota / existing S3 endpoint:** If you hit "maximum number of Instance Connect Endpoints" or "RouteAlreadyExists" for the S3 endpoint, set `existing_eice_security_group_id` to use an existing EIC (no new EIC created; admin server allows that SG). Optionally set `create_s3_vpc_endpoint = false` if the VPC already has an S3 Gateway endpoint:
 ```hcl
-create_instance_connect_endpoint = false
-existing_eice_security_group_id  = "sg-xxxxxxxxx"   # SG of your existing EIC (or SSM)
+existing_eice_security_group_id = "sg-xxxxxxxxx"   # SG of your existing EIC (or SSM)
 # and/or
-create_s3_vpc_endpoint = false   # if the VPC already has an S3 Gateway endpoint
+create_s3_vpc_endpoint = false
 ```
 
 Create `backend.conf` in this directory, making sure to set the key to a name unique to the admin server and tfstate. A sample is provided in `backend.conf.sample` and below:
