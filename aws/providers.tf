@@ -1,5 +1,5 @@
 terraform {
-  required_version = "1.13.4"
+  required_version = "~> 1.13"
 
   backend "s3" {
     # These are dev defaults that can be overridden by backend.conf in production
@@ -11,16 +11,11 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "5.45.0"
+      version = "~> 6.32"
     }
-    kubernetes = {
-      source  = "hashicorp/kubernetes"
-      version = "2.29.0"
-    }
-    kubectl = {
-      source  = "gavinbunney/kubectl"
-      version = "1.14.0"
-    }
+    # NOTE: kubernetes (2.29.0) and kubectl (gavinbunney 1.14.0) were removed --
+    # no resources in this repo use them. They are declared in the downstream
+    # project-n deployment, not in the admin server bootstrap.
   }
 }
 

@@ -12,11 +12,6 @@ variable "zone" {
   description = "The zone in which to create resources."
   type        = string
 }
-variable "boot_image" {
-  type        = string
-  description = "The admin server's boot image"
-  default     = "centos-cloud/centos-stream-9"
-}
 
 variable "admin_image_uri" {
   description = "Image URI for the Granica admin server"

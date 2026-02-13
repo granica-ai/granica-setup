@@ -4,9 +4,12 @@ set -euo pipefail
 # This script deploys the Granica Admin Server.
 # It is designed to be safe to run multiple times (idempotent).
 
-# Check that exactly two arguments are provided
-if [ "$#" -ne 3 ]; then
-    echo "Usage: $0 <customer_id> <rpm_url> <zone>"
+# Check arguments
+if [ "$#" -lt 3 ] || [ "$#" -gt 4 ]; then
+    echo "Usage: $0 <customer_id> <rpm_url> <zone> [deployment_name]"
+    echo "  deployment_name  Optional label to distinguish multiple clusters for the same customer"
+    echo "                   (e.g. prod, staging). If omitted, a random suffix is generated"
+    echo "                   on first run and persisted for subsequent runs."
     exit 1
 fi
 
@@ -26,6 +29,19 @@ fi
 CUSTOMER_ID="$1"
 RPM_URL="$2"
 ZONE="$3"
+
+# Resolve deployment name: explicit arg > persisted random > generate new random
+DEPLOY_ID_FILE="$HOME/.granica-deploy-id-${CUSTOMER_ID}"
+if [ -n "${4:-}" ]; then
+  DEPLOYMENT_NAME="$4"
+elif [ -f "$DEPLOY_ID_FILE" ]; then
+  DEPLOYMENT_NAME=$(cat "$DEPLOY_ID_FILE")
+  echo "Reusing persisted deployment name from $DEPLOY_ID_FILE"
+else
+  DEPLOYMENT_NAME=$(head -c 4 /dev/urandom | od -An -tx1 | tr -d ' \n')
+  echo "$DEPLOYMENT_NAME" > "$DEPLOY_ID_FILE"
+  echo "Generated new deployment name '$DEPLOYMENT_NAME' (saved to $DEPLOY_ID_FILE)"
+fi
 REGION=${ZONE%-*}
 PROJECT=$(gcloud config get-value project 2>/dev/null | tail -n 1)
 
@@ -33,10 +49,12 @@ echo "Using GCP Project:              $PROJECT"
 echo "Using GCP Region:               $REGION"
 echo "Using GCP Zone:                 $ZONE"
 echo "Customer ID:                    $CUSTOMER_ID"
+echo "Deployment Name:                $DEPLOYMENT_NAME"
 echo "RPM URL:                        $RPM_URL"
 
-# Define the remote state bucket name with the random suffix appended
-STATE_BUCKET="granica-vpc-tf-${CUSTOMER_ID}-$$"
+# State bucket is deterministic: same (customer_id, deployment_name) always resolves to the same bucket.
+# This makes re-runs idempotent while supporting multiple clusters per customer.
+STATE_BUCKET="granica-vpc-tf-${CUSTOMER_ID}-${DEPLOYMENT_NAME}"
 echo "Using remote state bucket:      $STATE_BUCKET"
 
 read -p "Would you like to proceed? (y/n): " answer
@@ -90,12 +108,12 @@ mkdir -p ~/bin
 ln -sf "$HOME/.tfenv/bin/"* ~/bin/
 export PATH="$HOME/.tfenv/bin:$PATH"
 
-# Install and use Terraform 1.9.3 idempotently
-if ! tfenv list | grep -q "1.9.3"; then
-    echo "Installing Terraform 1.9.3..."
-    tfenv install 1.9.3
+# Install and use Terraform 1.13.4 idempotently (must match required_version in main.tf)
+if ! tfenv list | grep -q "1.13.4"; then
+    echo "Installing Terraform 1.13.4..."
+    tfenv install 1.13.4
 fi
-tfenv use 1.9.3
+tfenv use 1.13.4
 
 echo "Terraform version:"
 terraform --version
@@ -127,7 +145,7 @@ fi
 
 cat > backend.conf <<EOF
 bucket = "$STATE_BUCKET"
-prefix = "$CUSTOMER_ID"
+prefix = "${CUSTOMER_ID}/${DEPLOYMENT_NAME}"
 EOF
 echo "Updated backend.conf"
 
@@ -137,7 +155,7 @@ project_id  = "$PROJECT"
 region      = "$REGION"
 zone        = "$ZONE"
 package_url = "$RPM_URL"
-server_name = "$CUSTOMER_ID"
+server_name = "${CUSTOMER_ID}-${DEPLOYMENT_NAME}"
 EOF
 echo "Updated terraform.tfvars"
 
@@ -150,5 +168,5 @@ echo "Applying Terraform configuration..."
 terraform apply -auto-approve
 
 echo "Deployment complete."
-echo "Your Granica Admin Server should now be available as granica-admin-server-$CUSTOMER_ID."
+echo "Your Granica Admin Server should now be available as granica-admin-${CUSTOMER_ID}-${DEPLOYMENT_NAME}."
 echo "To complete the Granica setup, connect to the instance and run: 'granica deploy --var-file=config.tfvars'"

@@ -1,5 +1,5 @@
 terraform {
-  required_version = "1.13.4"
+  required_version = "~> 1.13"
 
   backend "s3" {
     # These are dev defaults that can be overridden by backend.conf in production
@@ -11,7 +11,7 @@ terraform {
   required_providers {
     aws = {
       source  = "hashicorp/aws"
-      version = "5.45.0"
+      version = "~> 6.32"
     }
   }
 }
