@@ -72,7 +72,7 @@ resource "aws_security_group" "ec2_instance_connect" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"] // TODO: lock this down to the VPC CIDR
+    cidr_blocks = [local.vpc_cidr_block]
   }
 }
 
@@ -132,7 +132,7 @@ resource "aws_security_group" "admin_server" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = [local.vpc_cidr_block]
+    cidr_blocks = ["0.0.0.0/0"] // TODO: lock this down to the VPC CIDR
   }
 
 
@@ -150,15 +150,11 @@ resource "aws_security_group" "admin_server" {
 # TODO: Specify the exact AMI to use for now, as the latest AMI (al2023-ami-2023.6.20241121.0-kernel-6.1-x86_64) is not working for python ensurepip
 data "aws_ami" "al2023" {
   most_recent = true
+  owners      = ["amazon"] # Required by AWS provider v6+
 
   filter {
     name   = "name"
     values = ["al2023-ami-2023*"]
-  }
-
-  filter {
-    name   = "owner-alias"
-    values = ["amazon"] # The official owner of Amazon Linux AMIs
   }
 
   filter {
@@ -202,7 +198,7 @@ echo "8.8.8.8 is reachable!"
 
 while [ -f /var/run/yum.pid ] || pgrep -x yum > /dev/null; do
   echo "Waiting for other yum operations to complete..."
-  sleep 5  # waits 30 seconds before checking again
+  sleep 5  # waits 5 seconds before checking again
 done
 
 # Install pip for root and ec2-user
