@@ -32,9 +32,10 @@ data "aws_caller_identity" "current" {
 
 locals {
   default_tags = {
-    admin_server_name = "granica-admin-server-${var.server_name}"
-    owner_id          = data.aws_caller_identity.current.user_id
-    owner_arn         = data.aws_caller_identity.current.arn
+    admin_server_name         = "granica-admin-server-${var.server_name}"
+    owner_id                  = data.aws_caller_identity.current.user_id
+    owner_arn                 = data.aws_caller_identity.current.arn
+    (var.ec2_resource_tag_key) = var.ec2_resource_tag_value
   }
 }
 

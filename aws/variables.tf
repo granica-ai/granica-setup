@@ -15,13 +15,15 @@ variable "manage_vpc" {
 }
 
 variable "deploy_emr" {
-  type    = bool
-  default = false
+  type        = bool
+  default     = false
+  description = "When true, attaches EMR IAM policy to the admin server role so the EC2 instance can launch and manage EMR clusters (e.g. via Terraform or CLI from the admin server). Set to true if you use this admin server to run terraform-aws-emr or create EMR clusters."
 }
 
 variable "airflow_enabled" {
-  type    = bool
-  default = false
+  type        = bool
+  default     = false
+  description = "Deprecated: EFS policy was removed; this variable is ignored. Kept for backward compatibility with existing tfvars."
 }
 
 // Place admin-server in public subnet with a public IP
@@ -40,6 +42,18 @@ variable "vpc_cidr" {
   type        = string
   default     = "10.47.0.0/16"
   description = "The CIDR block for the VPC (only used when existing_vpc_id is not set)"
+}
+
+# Tag used to scope EC2 CreateTags/DeleteTags and Describe* to managed resources only.
+variable "ec2_resource_tag_key" {
+  type        = string
+  default     = "ManagedBy"
+  description = "Tag key used to identify EC2/VPC resources managed by this stack. CreateTags is allowed only when the request includes this tag; DeleteTags only on resources that have this tag."
+}
+variable "ec2_resource_tag_value" {
+  type        = string
+  default     = "granica"
+  description = "Tag value for ec2_resource_tag_key. Must match tags applied to EC2/VPC resources created or managed by this stack."
 }
 
 # --- Existing VPC: set existing_vpc_id (and subnets) to deploy into an existing VPC ---

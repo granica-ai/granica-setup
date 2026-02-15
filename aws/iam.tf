@@ -30,13 +30,6 @@ resource "aws_iam_policy" "deploy" {
   policy = data.aws_iam_policy_document.deploy.json
 }
 
-resource "aws_iam_policy" "vpc" {
-  count = var.manage_vpc && length(var.existing_vpc_id) == 0 ? 1 : 0
-
-  name   = "project-n-admin-vpc-permissions-${random_id.random_suffix.hex}"
-  policy = data.aws_iam_policy_document.vpc.json
-}
-
 resource "aws_iam_policy" "emr" {
   count = var.deploy_emr ? 1 : 0
 
@@ -44,23 +37,9 @@ resource "aws_iam_policy" "emr" {
   policy = data.aws_iam_policy_document.emr.json
 }
 
-resource "aws_iam_policy" "efs" {
-  count = var.airflow_enabled ? 1 : 0
-
-  name   = "project-n-admin-efs-permissions-${random_id.random_suffix.hex}"
-  policy = data.aws_iam_policy_document.efs.json
-}
-
 resource "aws_iam_role_policy_attachment" "admin-deploy" {
   policy_arn = aws_iam_policy.deploy.arn
   role       = aws_iam_role.admin.id
-}
-
-resource "aws_iam_role_policy_attachment" "admin-vpc" {
-  count = var.manage_vpc && length(var.existing_vpc_id) == 0 ? 1 : 0
-
-  policy_arn = aws_iam_policy.vpc[0].arn
-  role       = aws_iam_role.admin.name
 }
 
 resource "aws_iam_role_policy_attachment" "admin-emr" {
@@ -70,53 +49,79 @@ resource "aws_iam_role_policy_attachment" "admin-emr" {
   role       = aws_iam_role.admin.name
 }
 
-resource "aws_iam_role_policy_attachment" "admin-efs" {
-  count = var.airflow_enabled ? 1 : 0
-
-  policy_arn = aws_iam_policy.efs[0].arn
-  role       = aws_iam_role.admin.name
-}
-
 resource "aws_iam_role_policy_attachment" "admin-ssm" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   role       = aws_iam_role.admin.name
 }
 
+# EC2 admin server is used for EMR, S3, and infra only (no EKS). No KMS/ACM. Scoping via managed-by tags where possible.
 data "aws_iam_policy_document" "deploy" {
+  # EC2 describe/read only; scoped to one region (list/describe do not support resource tags).
   statement {
-    sid    = "UnrestrictedResourcePermissions"
+    sid    = "EC2DescribeRead"
     effect = "Allow"
     actions = [
-      "acm:DescribeCertificate",
-      "acm:ListTagsForCertificate",
-      "acm:RequestCertificate",
-      "acm:ImportCertificate",
-      "acm:AddTagsToCertificate",
       "autoscaling:Describe*",
+      "ec2:Describe*",
+      "ec2:GetLaunchTemplateData"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [var.aws_region]
+    }
+  }
+
+  # EC2 create/mutate: only when the request includes the managed-resource tag (RunInstances, CreateSecurityGroup, etc. support request tags).
+  statement {
+    sid    = "EC2CreateMutateScopedByTag"
+    effect = "Allow"
+    actions = [
       "ec2:AssociateIamInstanceProfile",
       "ec2:CreateLaunchTemplate",
       "ec2:CreateLaunchTemplateVersion",
       "ec2:CreateSecurityGroup",
-      "ec2:CreateTags",
-      "ec2:DeleteTags",
-      "ec2:Describe*",
-      "ec2:GetLaunchTemplateData",
-      "ec2:RunInstances",
-      "eks:CreateCluster",
-      "eks:DeleteCluster",
-      "eks:ListClusters",
-      "kms:CreateKey",
-      "kms:EnableKeyRotation",
-      "kms:DescribeKey",
-      "kms:GetKeyPolicy",
-      "kms:GetKeyRotationStatus",
-      "kms:ListResourceTags",
-      "kms:CreateGrant",
-      "kms:TagResource",
-      "kms:UntagResource",
-      "kms:ScheduleKeyDeletion"
+      "ec2:RevokeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupEgress",
+      "ec2:RunInstances"
     ]
     resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/${var.ec2_resource_tag_key}"
+      values   = [var.ec2_resource_tag_value]
+    }
+  }
+
+  # EC2 CreateTags: only when the request includes the managed-resource tag.
+  statement {
+    sid    = "EC2CreateTagsScoped"
+    effect = "Allow"
+    actions = [
+      "ec2:CreateTags"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestTag/${var.ec2_resource_tag_key}"
+      values   = [var.ec2_resource_tag_value]
+    }
+  }
+
+  # EC2 DeleteTags: only on resources that already have the managed-resource tag.
+  statement {
+    sid    = "EC2DeleteTagsScoped"
+    effect = "Allow"
+    actions = [
+      "ec2:DeleteTags"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/${var.ec2_resource_tag_key}"
+      values   = [var.ec2_resource_tag_value]
+    }
   }
 
   statement {
@@ -174,11 +179,7 @@ data "aws_iam_policy_document" "deploy" {
       "arn:aws:iam::*:policy/granica-*",
       "arn:aws:iam::*:role/project-n-*",
       "arn:aws:iam::*:role/granica-*",
-      "arn:aws:iam::*:oidc-provider/oidc.eks.*.amazonaws.com",
-      "arn:aws:iam::*:oidc-provider/oidc.eks.*.amazonaws.com/id/*",
-      "arn:aws:iam::*:role/aws-service-role/eks.amazonaws.com/AWSServiceRoleForAmazonEKS",
-      "arn:aws:iam::*:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling",
-      "arn:aws:iam::*:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing"
+      "arn:aws:iam::*:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling"
     ]
   }
 
@@ -212,73 +213,12 @@ data "aws_iam_policy_document" "deploy" {
     ]
   }
 
+  # s3:ListAllMyBuckets does not support resource-level permissions; must use "*" per AWS.
   statement {
     sid       = "ListAllBuckets"
     effect    = "Allow"
     actions   = ["s3:ListAllMyBuckets"]
     resources = ["*"]
-  }
-
-  statement {
-    sid    = "EKS"
-    effect = "Allow"
-    actions = [
-      "eks:DescribeUpdate",
-      "eks:DescribeCluster",
-      "eks:UpdateClusterConfig",
-      "eks:UpdateClusterVersion",
-      "eks:AssociateEncryptionConfig",
-      "eks:TagResource",
-      "eks:UntagResource"
-    ]
-    resources = [
-      "arn:aws:eks:*:*:cluster/project-n-*"
-    ]
-  }
-
-  statement {
-    sid    = "EKSAddons"
-    effect = "Allow"
-    actions = [
-      "eks:CreateAddon",
-      "eks:DeleteAddon",
-      "eks:ListAddons",
-      "eks:ListTagsForResource",
-      "eks:ListUpdates",
-      "eks:UpdateAddon",
-      "eks:TagResource",
-      "eks:UntagResource"
-    ]
-    resources = [
-      "arn:aws:eks:*:*:addon/project-n-*/*/*",
-      "arn:aws:eks:*:*:cluster/project-n-*"
-    ]
-  }
-
-  statement {
-    sid       = "EKSDescribe"
-    effect    = "Allow"
-    actions   = ["eks:Describe*"]
-    resources = ["*"]
-  }
-
-  statement {
-    sid    = "SQS"
-    effect = "Allow"
-    actions = [
-      "sqs:AddPermission",
-      "sqs:CreateQueue",
-      "sqs:GetQueueAttributes",
-      "sqs:GetQueueUrl",
-      "sqs:ListQueues",
-      "sqs:ListQueueTags",
-      "sqs:SetQueueAttributes",
-      "sqs:TagQueue",
-      "sqs:UntagQueue"
-    ]
-    resources = [
-      "arn:aws:sqs:*:*:project-n-*"
-    ]
   }
 
   statement {
@@ -294,111 +234,46 @@ data "aws_iam_policy_document" "deploy" {
       "logs:DeleteLogGroup"
     ]
     resources = [
-      "arn:aws:logs:*:*:log-group:/aws/eks/project-n*",
-      "arn:aws:logs:*:*:log-group::log-stream*"
+      "arn:aws:logs:*:*:log-group:/aws/emr/*",
+      "arn:aws:logs:*:*:log-group:/aws/granica-*",
+      "arn:aws:logs:*:*:log-group:/aws/project-n*"
     ]
   }
 }
 
+# EMR permissions for EC2 admin (launch/manage EMR from admin server). Scoped to account and cluster name pattern.
 data "aws_iam_policy_document" "emr" {
   statement {
-    sid    = "EMR"
+    sid    = "EMRClusters"
     effect = "Allow"
     actions = [
       "elasticmapreduce:*"
     ]
-    resources = ["*"]
-  }
-}
-
-data "aws_iam_policy_document" "vpc" {
-  statement {
-    sid    = "VPC"
-    effect = "Allow"
-    actions = [
-      // Nat Gateways
-      "ec2:CreateNatGateway",
-      "ec2:DeleteNatGateway",
-      // Internet Gateways
-      "ec2:CreateInternetGateway",
-      "ec2:AttachInternetGateway",
-      "ec2:DetachInternetGateway",
-      "ec2:DeleteInternetGateway",
-      // Network Interfaces
-      "ec2:CreateNetworkInterface",
-      "ec2:AttachNetworkInterface",
-      "ec2:DetachNetworkInterface",
-      "ec2:DeleteNetworkInterface",
-      // Addresses
-      "ec2:AllocateAddress",
-      "ec2:AssociateAddress",
-      "ec2:DisassociateAddress",
-      "ec2:ReleaseAddress",
-      // Routes/Route Tables
-      "ec2:CreateRoute",
-      "ec2:DeleteRoute",
-      "ec2:CreateRouteTable",
-      "ec2:DeleteRouteTable",
-      "ec2:AssociateRouteTable",
-      "ec2:DisassociateRouteTable",
-      // VPC
-      "ec2:CreateVpc",
-      "ec2:AssociateVpcCidrBlock",
-      "ec2:DisassociateVpcCidrBlock",
-      "ec2:ModifyVpcAttribute",
-      "ec2:DeleteVpc",
-      // Subnets
-      "ec2:CreateSubnet",
-      "ec2:AssociateSubnetCidrBlock",
-      "ec2:DisassociateSubnetCidrBlock",
-      "ec2:ModifySubnetAttribute",
-      "ec2:DeleteSubnet",
-      "ec2:DescribeSubnets",
-      // VPC Endpoints
-      "ec2:CreateVpcEndpoint",
-      "ec2:ModifyVpcEndpoint",
-      "ec2:DeleteVpcEndpoints",
-      // Security Groups
-      "ec2:CreateSecurityGroup",
-      "ec2:AuthorizeSecurityGroupIngress",
-      "ec2:AuthorizeSecurityGroupEgress",
-      "ec2:RevokeSecurityGroupIngress",
-      "ec2:RevokeSecurityGroupEgress",
-      "ec2:DeleteSecurityGroup",
-      "ec2:CreateTags",
-      "ec2:DeleteTags",
-      // VPC Peering
-      "ec2:CreateVpcPeeringConnection",
-      "ec2:DeleteVpcPeeringConnection",
-      "ec2:AcceptVpcPeeringConnection",
-    ]
-    resources = ["*"]
-  }
-}
-
-data "aws_iam_policy_document" "efs" {
-  statement {
-    sid    = "EFS"
-    effect = "Allow"
-    actions = [
-      "elasticfilesystem:CreateFileSystem",
-      "elasticfilesystem:CreateMountTarget",
-      "elasticfilesystem:CreateTags",
-      "elasticfilesystem:DeleteFileSystem",
-      "elasticfilesystem:DeleteMountTarget",
-      "elasticfilesystem:DeleteTags",
-      "elasticfilesystem:DescribeFileSystems",
-      "elasticfilesystem:DescribeLifecycleConfiguration",
-      "elasticfilesystem:DescribeMountTargets",
-      "elasticfilesystem:DescribeMountTargetSecurityGroups",
-      "elasticfilesystem:ModifyMountTargetSecurityGroups",
-      "elasticfilesystem:PutLifecycleConfiguration",
-      "elasticfilesystem:TagResource",
-      "elasticfilesystem:UntagResource",
-      "elasticfilesystem:UpdateFileSystem"
-    ]
     resources = [
-      "arn:aws:elasticfilesystem:*:*:file-system/*"
+      "arn:aws:elasticmapreduce:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/granica-*",
+      "arn:aws:elasticmapreduce:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/project-n-*",
+      "arn:aws:elasticmapreduce:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/j-*"
     ]
   }
+  # ListClusters, ListReleaseLabels, etc. are account/region-level; scope to one region (no resource ARN for list APIs).
+  statement {
+    sid    = "EMRListAndAccount"
+    effect = "Allow"
+    actions = [
+      "elasticmapreduce:ListClusters",
+      "elasticmapreduce:ListReleaseLabels",
+      "elasticmapreduce:GetBlockPublicAccessConfiguration",
+      "elasticmapreduce:DescribeReleaseLabel"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "aws:RequestedRegion"
+      values   = [var.aws_region]
+    }
+  }
 }
+
+# VPC create/mutate is not granted to the admin server: VPC is created by AccountAdmin (e.g. CloudShell) or by Terraform apply (runner's credentials), not from the EC2 instance.
+
+# EFS policy removed: EMR does not use EFS. EFS was only used for Airflow (airflow_enabled); for EMR-only deployments it is not needed.
