@@ -18,16 +18,28 @@ resource "aws_iam_role" "admin" {
   ]
 }
 EOF
+
+  lifecycle {
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 resource "aws_iam_instance_profile" "admin" {
   name = aws_iam_role.admin.name
   role = aws_iam_role.admin.name
+
+  lifecycle {
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 resource "aws_iam_policy" "deploy" {
   name   = "project-n-admin-deploy-${random_id.random_suffix.hex}"
   policy = data.aws_iam_policy_document.deploy.json
+
+  lifecycle {
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 resource "aws_iam_policy" "emr" {
@@ -35,6 +47,10 @@ resource "aws_iam_policy" "emr" {
 
   name   = "project-n-admin-emr-permissions-${random_id.random_suffix.hex}"
   policy = data.aws_iam_policy_document.emr.json
+
+  lifecycle {
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 resource "aws_iam_policy" "efs" {
@@ -42,6 +58,10 @@ resource "aws_iam_policy" "efs" {
 
   name   = "project-n-admin-efs-permissions-${random_id.random_suffix.hex}"
   policy = data.aws_iam_policy_document.efs.json
+
+  lifecycle {
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "admin-deploy" {

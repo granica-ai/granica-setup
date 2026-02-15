@@ -74,6 +74,10 @@ resource "aws_security_group" "ec2_instance_connect" {
     protocol    = "-1"
     cidr_blocks = [local.vpc_cidr_block]
   }
+
+  lifecycle {
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 resource "aws_ec2_instance_connect_endpoint" "main" {
@@ -82,6 +86,10 @@ resource "aws_ec2_instance_connect_endpoint" "main" {
   preserve_client_ip = false
   subnet_id          = local.target_subnet_id
   security_group_ids = [aws_security_group.ec2_instance_connect[0].id]
+
+  lifecycle {
+    ignore_changes = [tags, tags_all]
+  }
 }
 
 # S3 Gateway VPC endpoint; skip when VPC already has one (avoids RouteAlreadyExists) or create_s3_vpc_endpoint = false
@@ -95,6 +103,10 @@ resource "aws_vpc_endpoint" "s3" {
   route_table_ids = local.route_table_ids
   tags = {
     Name = "granica-vpc-s3-endpoint"
+  }
+
+  lifecycle {
+    ignore_changes = [tags, tags_all]
   }
 }
 
@@ -144,6 +156,10 @@ resource "aws_security_group" "admin_server" {
       protocol    = "tcp"
       cidr_blocks = ["0.0.0.0/0"]
     }
+  }
+
+  lifecycle {
+    ignore_changes = [tags, tags_all]
   }
 }
 
@@ -297,6 +313,10 @@ EOF
   tags = {
     Name = "granica-admin-server-${var.server_name}"
     imds = "secure"
+  }
+
+  lifecycle {
+    ignore_changes = [tags, tags_all]
   }
 }
 
