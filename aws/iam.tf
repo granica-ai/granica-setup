@@ -91,8 +91,6 @@ data "aws_iam_policy_document" "deploy" {
       "ec2:CreateLaunchTemplate",
       "ec2:CreateLaunchTemplateVersion",
       "ec2:CreateSecurityGroup",
-      "ec2:RevokeSecurityGroupIngress",
-      "ec2:RevokeSecurityGroupEgress",
       "ec2:RunInstances"
     ]
     resources = ["*"]
@@ -101,6 +99,37 @@ data "aws_iam_policy_document" "deploy" {
       variable = "aws:RequestTag/${var.ec2_resource_tag_key}"
       values   = [var.ec2_resource_tag_value]
     }
+  }
+
+  # Security group mutate (authorize/revoke/delete): allow only on security groups that have our tag (ec2:ResourceTag). Terraform uses these after CreateSecurityGroup to add/remove rules.
+  statement {
+    sid    = "EC2SecurityGroupMutateScopedByResourceTag"
+    effect = "Allow"
+    actions = [
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:AuthorizeSecurityGroupEgress",
+      "ec2:RevokeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupEgress",
+      "ec2:DeleteSecurityGroup"
+    ]
+    resources = ["*"]
+    condition {
+      test     = "StringEquals"
+      variable = "ec2:ResourceTag/${var.ec2_resource_tag_key}"
+      values   = [var.ec2_resource_tag_value]
+    }
+  }
+
+  # CreateSecurityGroup on a non-default VPC requires a second check on the VPC resource, which does not support RequestTag (AWS limitation). Allow the VPC part so the RequestTag check on the security group can succeed.
+  statement {
+    sid    = "EC2CreateSecurityGroupVpcCheck"
+    effect = "Allow"
+    actions = [
+      "ec2:CreateSecurityGroup"
+    ]
+    resources = [
+      "arn:aws:ec2:*:${data.aws_caller_identity.current.account_id}:vpc/*"
+    ]
   }
 
   # EC2 CreateTags: only when the request includes the managed-resource tag.
@@ -250,10 +279,23 @@ data "aws_iam_policy_document" "deploy" {
   }
 }
 
-# EMR permissions for EC2 admin (launch/manage EMR from admin server). Scoped to account and cluster name pattern.
+# EMR permissions for EC2 admin (launch/manage EMR from admin server). Create (RunJobFlow) allowed on cluster/*; all other operations only on granica/project-n/j-* clusters.
 data "aws_iam_policy_document" "emr" {
+  # RunJobFlow + AddTags on cluster/*: create (and tagging at create) authorized against cluster/*. Account+region scoped.
   statement {
-    sid    = "EMRClusters"
+    sid    = "EMRRunJobFlowOnly"
+    effect = "Allow"
+    actions = [
+      "elasticmapreduce:RunJobFlow",
+      "elasticmapreduce:AddTags"
+    ]
+    resources = [
+      "arn:aws:elasticmapreduce:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/*"
+    ]
+  }
+  # All other EMR actions (describe, terminate, modify, etc.) only on clusters we create: granica-*, project-n-*, j-* (job flow IDs).
+  statement {
+    sid    = "EMRClustersScoped"
     effect = "Allow"
     actions = [
       "elasticmapreduce:*"
