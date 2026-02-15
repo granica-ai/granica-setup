@@ -53,9 +53,10 @@ module "vpc" {
 }
 
 locals {
-  use_existing_vpc         = length(var.existing_vpc_id) > 0
-  create_instance_connect  = length(var.existing_eice_security_group_id) == 0
-  vpc_id                   = local.use_existing_vpc ? var.existing_vpc_id : module.vpc[0].vpc_id
+  use_existing_vpc        = length(var.existing_vpc_id) > 0
+  # Create EICE only when we create the VPC. Custom VPC + no existing_eice_security_group_id = no EICE (team uses Session Manager).
+  create_instance_connect = !local.use_existing_vpc
+  vpc_id                  = local.use_existing_vpc ? var.existing_vpc_id : module.vpc[0].vpc_id
   vpc_cidr_block           = local.use_existing_vpc ? data.aws_vpc.existing[0].cidr_block : module.vpc[0].vpc_cidr_block
   private_subnet_ids        = local.use_existing_vpc ? var.existing_private_subnet_ids : module.vpc[0].private_subnets
   public_subnet_ids         = local.use_existing_vpc ? var.existing_public_subnet_ids : module.vpc[0].public_subnets
@@ -130,8 +131,9 @@ resource "aws_security_group" "admin_server" {
     }
   }
 
+  # When custom VPC and they provide an existing EICE/SSM SG, allow that SG (no EICE created).
   dynamic "ingress" {
-    for_each = local.create_instance_connect ? [] : [1]
+    for_each = !local.create_instance_connect && length(var.existing_eice_security_group_id) > 0 ? [1] : []
     content {
       from_port       = 0
       to_port         = 0

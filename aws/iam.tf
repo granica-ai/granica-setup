@@ -326,6 +326,17 @@ data "aws_iam_policy_document" "emr" {
       "arn:aws:elasticmapreduce:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/j-*"
     ]
   }
+  # ModifyInstanceGroups is evaluated against instance group ARNs; instance groups have no tags (cluster has tags), so tag conditions cannot scope this action. Allow on instancegroup/* (account+region) so scale-down/destroy works; only instance groups of clusters we create are modified in practice.
+  statement {
+    sid    = "EMRInstanceGroupsScoped"
+    effect = "Allow"
+    actions = [
+      "elasticmapreduce:ModifyInstanceGroups"
+    ]
+    resources = [
+      "arn:aws:elasticmapreduce:${var.aws_region}:${data.aws_caller_identity.current.account_id}:instancegroup/*"
+    ]
+  }
   # ListClusters, ListReleaseLabels, GetBlockPublicAccessConfiguration, etc. are account/region-level (no resource ARN; no tag condition).
   statement {
     sid       = "EMRListAndAccount"

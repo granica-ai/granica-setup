@@ -41,6 +41,8 @@ existing_public_subnet_ids   = ["subnet-ccc"]   # Required only if public_ip_ena
 ```
 The admin server is placed in the first private (or public, if `public_ip_enabled`) subnet. By default, an S3 Gateway VPC endpoint is *not* created when `existing_vpc_id` is set (to avoid `RouteAlreadyExists`). Set `create_s3_vpc_endpoint = true` to create it anyway.
 
+**Custom VPC and EIC / Session Manager:** When using an existing VPC (`existing_vpc_id` set), no EC2 Instance Connect Endpoint (EIC) is created by default. Omit `existing_eice_security_group_id` to rely on Session Manager for access (no EIC ingress on the admin server SG). Set `existing_eice_security_group_id` to the SG of an existing EIC (or SSM) to allow that SG as admin server ingress. Session Manager needs no extra setup in this repo: the admin server role already has `AmazonSSMManagedInstanceCore`; ensure your existing VPC has SSM support (NAT or VPC endpoints for `ssmmessages`, `ec2messages`, `ssm`).
+
 **Avoiding EIC quota / existing S3 endpoint:** If you hit "maximum number of Instance Connect Endpoints" or "RouteAlreadyExists" for the S3 endpoint, set `existing_eice_security_group_id` to use an existing EIC (no new EIC created; admin server allows that SG). Optionally set `create_s3_vpc_endpoint = false` if the VPC already has an S3 Gateway endpoint:
 ```hcl
 existing_eice_security_group_id = "sg-xxxxxxxxx"   # SG of your existing EIC (or SSM)

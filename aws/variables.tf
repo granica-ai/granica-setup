@@ -96,5 +96,5 @@ variable "create_s3_vpc_endpoint" {
 variable "existing_eice_security_group_id" {
   type        = string
   default     = ""
-  description = "When set, do not create an EC2 Instance Connect Endpoint; allow admin server ingress from this SG (existing EIC or SSM). When empty, an EIC is created."
+  description = "Only used when existing_vpc_id is set. When set, allow admin server ingress from this SG (existing EIC or SSM); no EIC is created. When empty with existing VPC, no EIC is created and no EIC/SSM ingress is added (use Session Manager for access). Ignored when creating a new VPC (EIC is created)."
 }

@@ -14,4 +14,4 @@ server_name = "dev"
 
 # --- Optional: skip creating resources that may already exist (avoids quota/RouteAlreadyExists errors) ---
 # create_s3_vpc_endpoint        = false   # Set false if VPC already has S3 Gateway endpoint
-# existing_eice_security_group_id = "sg-xxx"   # When set, no EIC is created; admin server allows this SG (existing EIC or SSM)
+# existing_eice_security_group_id = "sg-xxx"   # Only for existing VPC: when set, admin server allows this SG (existing EIC or SSM); when unset, no EIC ingress (use Session Manager)
