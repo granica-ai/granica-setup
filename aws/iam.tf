@@ -140,6 +140,19 @@ data "aws_iam_policy_document" "deploy" {
     }
   }
 
+  # RevokeSecurityGroup* can be evaluated against the rule (sgr-*) which has no tags, so the tag condition above may deny. Allow revoke on SGs in this account/region so Terraform destroy (rule revocation) succeeds.
+  statement {
+    sid    = "EC2RevokeSecurityGroupRulesScoped"
+    effect = "Allow"
+    actions = [
+      "ec2:RevokeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupEgress"
+    ]
+    resources = [
+      "arn:aws:ec2:${var.aws_region}:${data.aws_caller_identity.current.account_id}:security-group/*"
+    ]
+  }
+
   # CreateSecurityGroup on a non-default VPC requires a second check on the VPC resource, which does not support RequestTag (AWS limitation). Allow the VPC part so the RequestTag check on the security group can succeed.
   statement {
     sid    = "EC2CreateSecurityGroupVpcCheck"
