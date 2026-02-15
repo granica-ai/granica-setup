@@ -37,6 +37,13 @@ resource "aws_iam_policy" "emr" {
   policy = data.aws_iam_policy_document.emr.json
 }
 
+resource "aws_iam_policy" "efs" {
+  count = var.airflow_enabled ? 1 : 0
+
+  name   = "project-n-admin-efs-permissions-${random_id.random_suffix.hex}"
+  policy = data.aws_iam_policy_document.efs.json
+}
+
 resource "aws_iam_role_policy_attachment" "admin-deploy" {
   policy_arn = aws_iam_policy.deploy.arn
   role       = aws_iam_role.admin.id
@@ -49,6 +56,13 @@ resource "aws_iam_role_policy_attachment" "admin-emr" {
   role       = aws_iam_role.admin.name
 }
 
+resource "aws_iam_role_policy_attachment" "admin-efs" {
+  count = var.airflow_enabled ? 1 : 0
+
+  policy_arn = aws_iam_policy.efs[0].arn
+  role       = aws_iam_role.admin.name
+}
+
 resource "aws_iam_role_policy_attachment" "admin-ssm" {
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
   role       = aws_iam_role.admin.name
@@ -56,7 +70,7 @@ resource "aws_iam_role_policy_attachment" "admin-ssm" {
 
 # EC2 admin server is used for EMR, S3, and infra only (no EKS). No KMS/ACM. Scoping via managed-by tags where possible.
 data "aws_iam_policy_document" "deploy" {
-  # EC2 describe/read only; scoped to one region (list/describe do not support resource tags).
+  # EC2 describe/read only (no condition; list/describe do not send resource tags).
   statement {
     sid    = "EC2DescribeRead"
     effect = "Allow"
@@ -66,11 +80,6 @@ data "aws_iam_policy_document" "deploy" {
       "ec2:GetLaunchTemplateData"
     ]
     resources = ["*"]
-    condition {
-      test     = "StringEquals"
-      variable = "aws:RequestedRegion"
-      values   = [var.aws_region]
-    }
   }
 
   # EC2 create/mutate: only when the request includes the managed-resource tag (RunInstances, CreateSecurityGroup, etc. support request tags).
@@ -222,6 +231,25 @@ data "aws_iam_policy_document" "deploy" {
   }
 
   statement {
+    sid    = "SQS"
+    effect = "Allow"
+    actions = [
+      "sqs:AddPermission",
+      "sqs:CreateQueue",
+      "sqs:GetQueueAttributes",
+      "sqs:GetQueueUrl",
+      "sqs:ListQueues",
+      "sqs:ListQueueTags",
+      "sqs:SetQueueAttributes",
+      "sqs:TagQueue",
+      "sqs:UntagQueue"
+    ]
+    resources = [
+      "arn:aws:sqs:*:*:project-n-*"
+    ]
+  }
+
+  statement {
     sid    = "logs"
     effect = "Allow"
     actions = [
@@ -255,25 +283,45 @@ data "aws_iam_policy_document" "emr" {
       "arn:aws:elasticmapreduce:${var.aws_region}:${data.aws_caller_identity.current.account_id}:cluster/j-*"
     ]
   }
-  # ListClusters, ListReleaseLabels, etc. are account/region-level; scope to one region (no resource ARN for list APIs).
+  # ListClusters, ListReleaseLabels, GetBlockPublicAccessConfiguration, etc. are account/region-level (no resource ARN; no tag condition).
   statement {
-    sid    = "EMRListAndAccount"
-    effect = "Allow"
-    actions = [
+    sid       = "EMRListAndAccount"
+    effect    = "Allow"
+    actions   = [
       "elasticmapreduce:ListClusters",
       "elasticmapreduce:ListReleaseLabels",
       "elasticmapreduce:GetBlockPublicAccessConfiguration",
       "elasticmapreduce:DescribeReleaseLabel"
     ]
     resources = ["*"]
-    condition {
-      test     = "StringEquals"
-      variable = "aws:RequestedRegion"
-      values   = [var.aws_region]
-    }
   }
 }
 
 # VPC create/mutate is not granted to the admin server: VPC is created by AccountAdmin (e.g. CloudShell) or by Terraform apply (runner's credentials), not from the EC2 instance.
 
-# EFS policy removed: EMR does not use EFS. EFS was only used for Airflow (airflow_enabled); for EMR-only deployments it is not needed.
+data "aws_iam_policy_document" "efs" {
+  statement {
+    sid    = "EFS"
+    effect = "Allow"
+    actions = [
+      "elasticfilesystem:CreateFileSystem",
+      "elasticfilesystem:CreateMountTarget",
+      "elasticfilesystem:CreateTags",
+      "elasticfilesystem:DeleteFileSystem",
+      "elasticfilesystem:DeleteMountTarget",
+      "elasticfilesystem:DeleteTags",
+      "elasticfilesystem:DescribeFileSystems",
+      "elasticfilesystem:DescribeLifecycleConfiguration",
+      "elasticfilesystem:DescribeMountTargets",
+      "elasticfilesystem:DescribeMountTargetSecurityGroups",
+      "elasticfilesystem:ModifyMountTargetSecurityGroups",
+      "elasticfilesystem:PutLifecycleConfiguration",
+      "elasticfilesystem:TagResource",
+      "elasticfilesystem:UntagResource",
+      "elasticfilesystem:UpdateFileSystem"
+    ]
+    resources = [
+      "arn:aws:elasticfilesystem:*:*:file-system/*"
+    ]
+  }
+}

@@ -21,9 +21,8 @@ variable "deploy_emr" {
 }
 
 variable "airflow_enabled" {
-  type        = bool
-  default     = false
-  description = "Deprecated: EFS policy was removed; this variable is ignored. Kept for backward compatibility with existing tfvars."
+  type    = bool
+  default = false
 }
 
 // Place admin-server in public subnet with a public IP

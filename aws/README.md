@@ -29,7 +29,8 @@ Create `terraform.tfvars` in this directory. A sample is provided in `terraform.
 aws_region  = "your-region"              # Region where admin server and Granica will be deployed. E.g. us-east-1.
 package_url = "https://granica.ai/granica.rpm"
 server_name = "my-server"                # Optional: suffix for admin server name (defaults to "dev")
-deploy_emr  = true                       # Set to true if this admin server will launch or manage EMR clusters (e.g. terraform-aws-emr); enables EMR IAM policy on the EC2 role
+airflow_enabled = true                   # Optional: enables EFS permissions for Airflow deployment (defaults to false)
+deploy_emr      = true                  # Set to true if this admin server will launch or manage EMR clusters (e.g. terraform-aws-emr); enables EMR IAM policy on the EC2 role
 ```
 
 **Existing VPC (optional):** Set `existing_vpc_id` (and subnets) to deploy into an existing VPC instead of creating a new one:
