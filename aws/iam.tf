@@ -231,25 +231,6 @@ data "aws_iam_policy_document" "deploy" {
   }
 
   statement {
-    sid    = "SQS"
-    effect = "Allow"
-    actions = [
-      "sqs:AddPermission",
-      "sqs:CreateQueue",
-      "sqs:GetQueueAttributes",
-      "sqs:GetQueueUrl",
-      "sqs:ListQueues",
-      "sqs:ListQueueTags",
-      "sqs:SetQueueAttributes",
-      "sqs:TagQueue",
-      "sqs:UntagQueue"
-    ]
-    resources = [
-      "arn:aws:sqs:*:*:project-n-*"
-    ]
-  }
-
-  statement {
     sid    = "logs"
     effect = "Allow"
     actions = [
