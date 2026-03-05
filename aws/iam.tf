@@ -268,6 +268,7 @@ data "aws_iam_policy_document" "deploy" {
     actions = [
       "sqs:AddPermission",
       "sqs:CreateQueue",
+      "sqs:DeleteQueue",
       "sqs:GetQueueAttributes",
       "sqs:GetQueueUrl",
       "sqs:ListQueues",
@@ -278,6 +279,25 @@ data "aws_iam_policy_document" "deploy" {
     ]
     resources = [
       "arn:aws:sqs:*:*:project-n-*"
+    ]
+  }
+
+  statement {
+    sid    = "EventBridge"
+    effect = "Allow"
+    actions = [
+      "events:DeleteRule",
+      "events:DescribeRule",
+      "events:ListTagsForResource",
+      "events:ListTargetsByRule",
+      "events:PutRule",
+      "events:PutTargets",
+      "events:RemoveTargets",
+      "events:TagResource",
+      "events:UntagResource",
+    ]
+    resources = [
+      "arn:aws:events:*:*:rule/project-n-*"
     ]
   }
 
