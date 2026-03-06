@@ -282,6 +282,8 @@ data "aws_iam_policy_document" "deploy" {
     ]
   }
 
+  # Required by Karpenter: manages EventBridge rules for spot interruption and
+  # EC2 rebalance notifications routed to the Karpenter SQS interruption queue.
   statement {
     sid    = "EventBridge"
     effect = "Allow"
