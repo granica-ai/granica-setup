@@ -135,6 +135,7 @@ data "aws_iam_policy_document" "deploy" {
       "iam:CreateServiceLinkedRole",
       "iam:DeleteInstanceProfile",
       "iam:DeletePolicy",
+      "iam:DeletePolicyVersion",
       "iam:DeleteRole",
       "iam:DetachRolePolicy",
       "iam:DeleteOpenIDConnectProvider",
