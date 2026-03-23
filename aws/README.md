@@ -4,8 +4,10 @@ This guide will help you set up and destroy a Granica Admin Server with its VPC 
 
 ### Prerequisites
 
-* AWS credentials with administrator access (AWS Cloud Shell)
-* Git installed on your system
+* **AWS credentials** sufficient to run Terraform for this module. You do **not** need account administrator access if you follow a minimal FDE policy set.
+  * **Existing VPC (typical):** customer-managed policy from [`customer/fde/aws/docs/fde-user-existing-vpc.json`](../customer/fde/aws/docs/fde-user-existing-vpc.json) (use [`.min.json`](../customer/fde/aws/docs/fde-user-existing-vpc.min.json) for IAM paste under the 6,144-character limit) plus optional AWS managed policies for CloudShell / console read. Terraform creates the admin EC2 and `project-n-admin-*` instance profile; **`granica deploy` and EKS** run **on that instance** using its role, not your console user’s deploy permissions.
+  * **New VPC:** broader EC2/VPC permissions are required for Terraform; see [`customer/fde/aws/docs/fde-user-new-vpc.json`](../customer/fde/aws/docs/fde-user-new-vpc.json).
+* Git installed on your system (or use AWS CloudShell, which includes Git).
 
 ### AWS CloudShell and Terraform disk space
 
@@ -58,11 +60,12 @@ existing_public_subnet_ids   = ["subnet-ccc"]   # Required only if public_ip_ena
 ```
 The admin server is placed in the first private (or public, if `public_ip_enabled`) subnet. By default, an S3 Gateway VPC endpoint is *not* created when `existing_vpc_id` is set (to avoid `RouteAlreadyExists`). Set `create_s3_vpc_endpoint = true` to create it anyway.
 
-**Avoiding EIC quota / existing S3 endpoint:** If you hit "maximum number of Instance Connect Endpoints" or "RouteAlreadyExists" for the S3 endpoint, set `existing_eice_security_group_id` to use an existing EIC (no new EIC created; admin server allows that SG). Optionally set `create_s3_vpc_endpoint = false` if the VPC already has an S3 Gateway endpoint:
+**Connect to the admin instance:** Variable **`instance_connect`** (default **empty**): use **Session Manager** (the instance profile includes `AmazonSSMManagedInstanceCore`) or your own path. Set to **`"create"`** to create an EC2 Instance Connect Endpoint and its security group, or to a security group id (**`sg-...`**) to allow ingress from an existing endpoint or bastion without creating resources.
+
+**Avoiding S3 `RouteAlreadyExists`:** If the VPC already has an S3 gateway endpoint, set `create_s3_vpc_endpoint = false`.
 ```hcl
-existing_eice_security_group_id = "sg-xxxxxxxxx"   # SG of your existing EIC (or SSM)
-# and/or
-create_s3_vpc_endpoint = false
+instance_connect         = "create"              # or "sg-xxxxxxxxx", or omit for Session Manager only
+create_s3_vpc_endpoint   = false
 ```
 
 Create `backend.conf` in this directory, making sure to set the key to a name unique to the admin server and tfstate. A sample is provided in `backend.conf.sample` and below:
