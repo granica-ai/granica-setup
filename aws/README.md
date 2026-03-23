@@ -5,8 +5,8 @@ This guide will help you set up and destroy a Granica Admin Server with its VPC 
 ### Prerequisites
 
 * **AWS credentials** sufficient to run Terraform for this module. You do **not** need account administrator access if you follow a minimal FDE policy set.
-  * **Existing VPC (typical):** customer-managed policy from [`customer/fde/aws/docs/fde-user-existing-vpc.json`](../customer/fde/aws/docs/fde-user-existing-vpc.json) (use [`.min.json`](../customer/fde/aws/docs/fde-user-existing-vpc.min.json) for IAM paste under the 6,144-character limit) plus optional AWS managed policies for CloudShell / console read. Terraform creates the admin EC2 and `project-n-admin-*` instance profile; **`granica deploy` and EKS** run **on that instance** using its role, not your console user’s deploy permissions.
-  * **New VPC:** broader EC2/VPC permissions are required for Terraform; see [`customer/fde/aws/docs/fde-user-new-vpc.json`](../customer/fde/aws/docs/fde-user-new-vpc.json).
+  * **Existing VPC (typical):** customer-managed policy from [`customer/fde/aws/docs/fde-user-existing-vpc.json`](../customer/fde/aws/docs/fde-user-existing-vpc.json) plus optional AWS managed policies for CloudShell / console read. Terraform creates the admin EC2 and `project-n-admin-*` instance profile; **`granica deploy` and EKS** run **on that instance** using its role, not your console user’s deploy permissions.
+  * **New VPC:** EC2/VPC permissions for `terraform-aws-modules/vpc` plus the admin instance; see [`customer/fde/aws/docs/fde-user-new-vpc.json`](../customer/fde/aws/docs/fde-user-new-vpc.json). Replace **`ACCOUNT_ID`**. VPC build APIs use `Resource: *` (except **`RunInstances`** / **`TerminateInstances`**, which are scoped + tag conditions for the admin server).
 * Git installed on your system (or use AWS CloudShell, which includes Git).
 
 ### AWS CloudShell and Terraform disk space
