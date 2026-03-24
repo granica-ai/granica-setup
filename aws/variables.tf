@@ -54,22 +54,12 @@ variable "existing_private_subnet_ids" {
   type        = list(string)
   default     = []
   description = "IDs of existing private subnets. Required when existing_vpc_id is set. Admin server is placed in the first subnet unless public_ip_enabled."
-
-  validation {
-    condition     = length(var.existing_vpc_id) == 0 || length(var.existing_private_subnet_ids) > 0
-    error_message = "existing_private_subnet_ids must have at least one subnet when existing_vpc_id is set."
-  }
 }
 
 variable "existing_public_subnet_ids" {
   type        = list(string)
   default     = []
   description = "IDs of existing public subnets. Required when existing_vpc_id is set and public_ip_enabled is true."
-
-  validation {
-    condition     = length(var.existing_vpc_id) == 0 || !var.public_ip_enabled || length(var.existing_public_subnet_ids) > 0
-    error_message = "existing_public_subnet_ids must have at least one subnet when existing_vpc_id is set and public_ip_enabled is true."
-  }
 }
 
 # --- Optional: skip creating resources that may already exist ---
@@ -80,8 +70,22 @@ variable "create_s3_vpc_endpoint" {
   description = "Set to false to skip creating the S3 Gateway VPC endpoint (e.g. VPC already has one; avoids RouteAlreadyExists). When null, defaults to false if existing_vpc_id is set, else true."
 }
 
-variable "existing_eice_security_group_id" {
+variable "instance_connect" {
   type        = string
   default     = ""
-  description = "When set, do not create an EC2 Instance Connect Endpoint; allow admin server ingress from this SG (existing EIC or SSM). When empty, an EIC is created."
+  description = <<-EOT
+    Single knob for Instance Connect–style access (Session Manager remains available in all cases via the instance profile):
+    - Leave empty (default): do not create an Instance Connect Endpoint; use Session Manager or your own path.
+    - "create": create a new EC2 Instance Connect Endpoint and its security group.
+    - A value starting with "sg-": do not create an endpoint; allow admin ingress from that security group (e.g. an existing Instance Connect endpoint or bastion).
+  EOT
+
+  validation {
+    condition = (
+      trimspace(var.instance_connect) == "" ||
+      lower(trimspace(var.instance_connect)) == "create" ||
+      startswith(lower(trimspace(var.instance_connect)), "sg-")
+    )
+    error_message = "instance_connect must be empty, \"create\", or a security group id starting with sg- (case-insensitive)."
+  }
 }

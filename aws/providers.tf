@@ -13,6 +13,10 @@ terraform {
       source  = "hashicorp/aws"
       version = "~> 6.32"
     }
+    random = {
+      source  = "hashicorp/random"
+      version = "~> 3.6"
+    }
     # NOTE: kubernetes (2.29.0) and kubectl (gavinbunney 1.14.0) were removed --
     # no resources in this repo use them. They are declared in the downstream
     # project-n deployment, not in the admin server bootstrap.

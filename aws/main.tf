@@ -15,8 +15,8 @@ data "aws_route_tables" "existing" {
 }
 
 module "vpc" {
-  count  = length(var.existing_vpc_id) > 0 ? 0 : 1
-  source = "terraform-aws-modules/vpc/aws"
+  count   = length(var.existing_vpc_id) > 0 ? 0 : 1
+  source  = "terraform-aws-modules/vpc/aws"
   version = "5.7.1"
 
   name = "granica-vpc-${var.server_name}"
@@ -52,20 +52,34 @@ module "vpc" {
   }
 }
 
+check "existing_vpc_subnets" {
+  assert {
+    condition     = length(var.existing_vpc_id) == 0 || length(var.existing_private_subnet_ids) > 0
+    error_message = "When existing_vpc_id is set, existing_private_subnet_ids must have at least one subnet."
+  }
+  assert {
+    condition     = length(var.existing_vpc_id) == 0 || !var.public_ip_enabled || length(var.existing_public_subnet_ids) > 0
+    error_message = "When existing_vpc_id is set and public_ip_enabled is true, existing_public_subnet_ids must have at least one subnet."
+  }
+}
+
 locals {
   use_existing_vpc         = length(var.existing_vpc_id) > 0
-  create_instance_connect  = length(var.existing_eice_security_group_id) == 0
+  instance_connect_trimmed = trimspace(var.instance_connect)
+  create_eic_resources     = lower(local.instance_connect_trimmed) == "create"
+  use_existing_eice_sg     = local.instance_connect_trimmed != "" && startswith(lower(local.instance_connect_trimmed), "sg-")
+  instance_connect_sg_id   = local.use_existing_eice_sg ? lower(local.instance_connect_trimmed) : null
   vpc_id                   = local.use_existing_vpc ? var.existing_vpc_id : module.vpc[0].vpc_id
   vpc_cidr_block           = local.use_existing_vpc ? data.aws_vpc.existing[0].cidr_block : module.vpc[0].vpc_cidr_block
-  private_subnet_ids        = local.use_existing_vpc ? var.existing_private_subnet_ids : module.vpc[0].private_subnets
-  public_subnet_ids         = local.use_existing_vpc ? var.existing_public_subnet_ids : module.vpc[0].public_subnets
-  route_table_ids           = local.use_existing_vpc ? data.aws_route_tables.existing[0].ids : concat(module.vpc[0].public_route_table_ids, module.vpc[0].private_route_table_ids)
-  target_subnet_id          = var.public_ip_enabled ? local.public_subnet_ids[0] : local.private_subnet_ids[0]
-  create_s3_vpc_endpoint    = coalesce(var.create_s3_vpc_endpoint, !local.use_existing_vpc)
+  private_subnet_ids       = local.use_existing_vpc ? var.existing_private_subnet_ids : module.vpc[0].private_subnets
+  public_subnet_ids        = local.use_existing_vpc ? var.existing_public_subnet_ids : module.vpc[0].public_subnets
+  route_table_ids          = local.use_existing_vpc ? data.aws_route_tables.existing[0].ids : concat(module.vpc[0].public_route_table_ids, module.vpc[0].private_route_table_ids)
+  target_subnet_id         = var.public_ip_enabled ? local.public_subnet_ids[0] : local.private_subnet_ids[0]
+  create_s3_vpc_endpoint   = coalesce(var.create_s3_vpc_endpoint, !local.use_existing_vpc)
 }
 
 resource "aws_security_group" "ec2_instance_connect" {
-  count  = local.create_instance_connect ? 1 : 0
+  count  = local.create_eic_resources ? 1 : 0
   vpc_id = local.vpc_id
 
   egress {
@@ -77,7 +91,7 @@ resource "aws_security_group" "ec2_instance_connect" {
 }
 
 resource "aws_ec2_instance_connect_endpoint" "main" {
-  count = local.create_instance_connect ? 1 : 0
+  count = local.create_eic_resources ? 1 : 0
   # https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/connect-using-eice.html#ec2-instance-connect-endpoint-limitations
   preserve_client_ip = false
   subnet_id          = local.target_subnet_id
@@ -109,7 +123,7 @@ resource "aws_security_group" "admin_server" {
   }
 
   dynamic "ingress" {
-    for_each = local.create_instance_connect ? [1] : []
+    for_each = local.create_eic_resources ? [1] : []
     content {
       from_port       = 0
       to_port         = 0
@@ -119,12 +133,12 @@ resource "aws_security_group" "admin_server" {
   }
 
   dynamic "ingress" {
-    for_each = local.create_instance_connect ? [] : [1]
+    for_each = local.use_existing_eice_sg ? [1] : []
     content {
       from_port       = 0
       to_port         = 0
       protocol        = "-1"
-      security_groups = [var.existing_eice_security_group_id]
+      security_groups = [local.instance_connect_sg_id]
     }
   }
 
@@ -169,7 +183,6 @@ data "aws_ami" "al2023" {
 }
 
 resource "aws_instance" "admin_server" {
-  # Only wait for EIC/S3 endpoint when we create them; no blocker when skipped
   depends_on = [
     aws_ec2_instance_connect_endpoint.main,
     aws_vpc_endpoint.s3
@@ -301,5 +314,14 @@ EOF
 }
 
 output "admin_server_ec2_instance_connect_endpoint_connect_command" {
-  value = "aws ec2-instance-connect ssh --instance-id ${aws_instance.admin_server.id} --connection-type eice --region ${var.aws_region}"
+  description = "CLI hint: EC2 Instance Connect when an endpoint is used; otherwise Session Manager (see README: ssm-user vs ec2-user)."
+  value = local.create_eic_resources ? (
+    "aws ec2-instance-connect ssh --instance-id ${aws_instance.admin_server.id} --connection-type eice --region ${var.aws_region}"
+    ) : local.use_existing_eice_sg ? (
+    "Instance Connect via security group ${local.instance_connect_sg_id} (use your org's EIC/SSH path)."
+    ) : join("\n", [
+      "aws ssm start-session --target ${aws_instance.admin_server.id} --region ${var.aws_region}",
+      "",
+      "Session Manager starts a shell as ssm-user. Switch to ec2-user for Granica files and typical workflows: sudo su - ec2-user",
+  ])
 }
