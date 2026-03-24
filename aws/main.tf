@@ -314,12 +314,14 @@ EOF
 }
 
 output "admin_server_ec2_instance_connect_endpoint_connect_command" {
-  description = "CLI hint: EC2 Instance Connect when an endpoint is used; otherwise Session Manager."
+  description = "CLI hint: EC2 Instance Connect when an endpoint is used; otherwise Session Manager (see README: ssm-user vs ec2-user)."
   value = local.create_eic_resources ? (
     "aws ec2-instance-connect ssh --instance-id ${aws_instance.admin_server.id} --connection-type eice --region ${var.aws_region}"
     ) : local.use_existing_eice_sg ? (
     "Instance Connect via security group ${local.instance_connect_sg_id} (use your org's EIC/SSH path)."
-    ) : (
-    "aws ssm start-session --target ${aws_instance.admin_server.id} --region ${var.aws_region}"
-  )
+    ) : join("\n", [
+      "aws ssm start-session --target ${aws_instance.admin_server.id} --region ${var.aws_region}",
+      "",
+      "Session Manager starts a shell as ssm-user. Switch to ec2-user for Granica files and typical workflows: sudo su - ec2-user",
+  ])
 }

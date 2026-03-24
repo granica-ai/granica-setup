@@ -62,6 +62,16 @@ The admin server is placed in the first private (or public, if `public_ip_enable
 
 **Connect to the admin instance:** Variable **`instance_connect`** (default **empty**): use **Session Manager** (the instance profile includes `AmazonSSMManagedInstanceCore`) or your own path. Set to **`"create"`** to create an EC2 Instance Connect Endpoint and its security group, or to a security group id (**`sg-...`**) to allow ingress from an existing endpoint or bastion without creating resources.
 
+**Session Manager and `ssm-user`:** A session opened with **`aws ssm start-session`** (or the console **Session Manager** connect action) runs as Linux user **`ssm-user`**, not **`ec2-user`**. User data, `config.tfvars`, and Granica-related files under `/home/ec2-user` are owned by **`ec2-user`**. After the session starts, switch accounts:
+
+```bash
+whoami                    # ssm-user
+sudo su - ec2-user
+whoami                    # ec2-user
+```
+
+Then run **`granica deploy --var-file=config.tfvars`** (and similar) from **`ec2-user`**.
+
 **Avoiding S3 `RouteAlreadyExists`:** If the VPC already has an S3 gateway endpoint, set `create_s3_vpc_endpoint = false`.
 ```hcl
 instance_connect         = "create"              # or "sg-xxxxxxxxx", or omit for Session Manager only
@@ -89,9 +99,9 @@ Your admin server will be created with the name `granica-admin-server-{server_na
 
 After the deployment, you can set up Granica by following these steps:
 
-- Go to the AWS EC2 console
-- Connect to the `granica-admin-server-{server_name}` instance
-- Run the command `granica deploy --var-file=config.tfvars`
+- Connect to the `granica-admin-server-{server_name}` instance (EC2 console **Connect** → Session Manager, or the `aws ssm start-session` command from `terraform output admin_server_ec2_instance_connect_endpoint_connect_command`).
+- If you used Session Manager, **`sudo su - ec2-user`** first (see **Session Manager and `ssm-user`** above).
+- Run **`granica deploy --var-file=config.tfvars`**
 
 ### Production Setup (Optional)
 
