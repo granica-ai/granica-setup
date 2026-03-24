@@ -1,0 +1,27 @@
+# Azure subscription where the admin server and Granica will be deployed.
+subscription_id = "your-subscription-id"
+
+# Azure region for all resources.
+region = "eastus2"
+
+# URL to the Granica RPM/DEB package.
+package_url = "https://granica.ai/granica.rpm"
+
+# Optional: suffix for the admin server name (defaults to "dev").
+server_name = "dev"
+
+# Optional: VM size for the admin server (defaults to Standard_B2s).
+# vm_size = "Standard_B2s"
+
+# Optional: enable a public IP on the admin server (dev/test only).
+# public_ip_enabled = true
+
+# Optional: create Azure Bastion for secure SSH (recommended for production).
+# bastion_enabled = true
+
+# Optional: enable Airflow-related permissions (Azure Files).
+# airflow_enabled = true
+
+# --- Optional: existing VNet (set existing_vnet_id + subnet; when empty, a new VNet is created) ---
+# existing_vnet_id    = "/subscriptions/.../resourceGroups/.../providers/Microsoft.Network/virtualNetworks/my-vnet"
+# existing_subnet_id  = "/subscriptions/.../resourceGroups/.../providers/Microsoft.Network/virtualNetworks/my-vnet/subnets/my-subnet"
