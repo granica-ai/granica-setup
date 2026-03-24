@@ -7,6 +7,22 @@ This guide will help you set up and destroy a Granica Admin Server with its VPC 
 * AWS credentials with administrator access (AWS Cloud Shell)
 * Git installed on your system
 
+### AWS CloudShell and Terraform disk space
+
+AWS CloudShell gives you a small **home** volume (on the order of **1 GiB**). A normal `terraform init` in `granica-setup/aws` stores the AWS provider (and module/plugin metadata) under `.terraform` in that directory, which often **fills `$HOME`** and breaks installs, shells, or git.
+
+**Before the first `terraform init` in this directory**, point Terraform’s working data and plugin cache at **`/tmp`**, which typically has more room in CloudShell (treat it as **ephemeral**: new CloudShell sessions need these exports again):
+
+```bash
+mkdir -p /tmp/granica-setup-aws-tf-data /tmp/terraform-plugin-cache
+export TF_DATA_DIR=/tmp/granica-setup-aws-tf-data
+export TF_PLUGIN_CACHE_DIR=/tmp/terraform-plugin-cache
+```
+
+Use the **same** `export` lines in any later session before `terraform init`, `terraform apply`, or `terraform destroy` (remote state stays in S3; this only affects local provider/module cache).
+
+If you already ran `init` without this and hit “no space left”, remove the old local cache under `granica-setup/aws/.terraform` and default plugin dirs under `$HOME/.terraform.d` if present, then set the variables above and run `terraform init` again.
+
 ### Quick Start (Dev Mode)
 
 **1. Install Terraform and Clone Granica Setup Repo**
@@ -21,6 +37,8 @@ terraform --version
 git clone https://github.com/granica-ai/granica-setup.git
 cd granica-setup/aws
 ```
+
+**AWS CloudShell:** run the `mkdir` / `export` block from **[AWS CloudShell and Terraform disk space](#aws-cloudshell-and-terraform-disk-space)** here, before `terraform init`.
 
 **2. Configure Deployment**
 
@@ -85,6 +103,7 @@ key    = "your-cluster-key"               # Unique identifier for this deploymen
 
 **2. Deploy with Custom State Configuration**
 ```bash
+# CloudShell: export TF_DATA_DIR / TF_PLUGIN_CACHE_DIR as in Quick Start
 terraform init -backend-config=backend.conf
 terraform apply
 ```
@@ -103,5 +122,7 @@ To destroy a deployment cleanup Granica / the admin server in the reverse order 
 **2. Admin Server Destroy**
 From the AWS Cloud Shell:
 ```bash
+# CloudShell: same TF_DATA_DIR / TF_PLUGIN_CACHE_DIR exports as for init, then:
+terraform init -backend-config=backend.conf
 terraform destroy
 ```
