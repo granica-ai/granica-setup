@@ -30,9 +30,18 @@ resource "azurerm_role_assignment" "admin_contributor" {
 }
 
 # User Access Administrator: assign RBAC roles to managed identities created by granica deploy
+# Scoped to subscription (not just RG) because some roles like Monitoring Metrics Publisher
+# need subscription-level assignment
 resource "azurerm_role_assignment" "admin_user_access" {
-  scope                = azurerm_resource_group.main.id
+  scope                = "/subscriptions/${var.subscription_id}"
   role_definition_name = "User Access Administrator"
+  principal_id         = azurerm_user_assigned_identity.admin.principal_id
+}
+
+# Monitoring Contributor: allows admin to assign monitoring roles to workload identities
+resource "azurerm_role_assignment" "admin_monitoring" {
+  scope                = "/subscriptions/${var.subscription_id}"
+  role_definition_name = "Monitoring Contributor"
   principal_id         = azurerm_user_assigned_identity.admin.principal_id
 }
 
@@ -57,12 +66,16 @@ resource "azurerm_role_assignment" "admin_storage" {
   principal_id         = azurerm_user_assigned_identity.admin.principal_id
 }
 
-# Key Vault Administrator: manage secrets, certs in Key Vault
-resource "azurerm_role_assignment" "admin_keyvault" {
-  scope                = azurerm_resource_group.main.id
-  role_definition_name = "Key Vault Administrator"
-  principal_id         = azurerm_user_assigned_identity.admin.principal_id
-}
+# TODO (production): Replace broad Contributor role with specific roles:
+#   - Azure Kubernetes Service Contributor Role (AKS)
+#   - Storage Account Contributor (create storage accounts)
+#   - Storage Blob Data Owner (manage blob data)
+#   - PostgreSQL Flexible Server Contributor (create/manage DB)
+#   - Service Bus Namespace Contributor (create/manage queues)
+#   - Network Contributor (manage VNet, subnets, NSGs)
+#   - Managed Identity Contributor (create workload identities)
+# TODO (production): Scope User Access Administrator to RG instead of subscription
+#   (requires pre-creating the Monitoring Metrics Publisher role assignment separately)
 
 # Managed Identity Operator: assign managed identities to AKS and workload pods
 resource "azurerm_role_assignment" "admin_mi_operator" {

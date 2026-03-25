@@ -161,9 +161,19 @@ echo '{"default_platform":"azure"}' > /home/${var.admin_username}/.project-n/con
 chmod -R 755 /home/${var.admin_username}/.project-n
 chown -R ${var.admin_username}:${var.admin_username} /home/${var.admin_username}/.project-n
 
-# Login to Azure using managed identity
-echo "Configuring Azure CLI with managed identity..."
-su ${var.admin_username} -c 'az login --identity --username ${azurerm_user_assigned_identity.admin.client_id} 2>/dev/null || echo "MI login will work after VM is fully provisioned"'
+# Auto-login with managed identity on every session (equivalent to AWS instance profile / GCP SA auto-auth)
+echo "Configuring Azure CLI auto-login with managed identity..."
+cat >> /home/${var.admin_username}/.bashrc << 'BASHRC'
+# Auto-login with VM's managed identity (like AWS instance profile / GCP service account)
+if ! az account show &>/dev/null 2>&1; then
+  az login --identity --client-id ${azurerm_user_assigned_identity.admin.client_id} &>/dev/null
+  az account set --subscription ${var.subscription_id} &>/dev/null
+fi
+BASHRC
+chown ${var.admin_username}:${var.admin_username} /home/${var.admin_username}/.bashrc
+
+# Also login now for the current setup session
+su ${var.admin_username} -c 'az login --identity --client-id ${azurerm_user_assigned_identity.admin.client_id} 2>/dev/null || echo "MI login will work after VM is fully provisioned"'
 su ${var.admin_username} -c 'az account set --subscription ${var.subscription_id}'
 
 # Install Granica RPM
@@ -208,4 +218,27 @@ EOF
     azurerm_subnet_nat_gateway_association.admin,
     azurerm_subnet_network_security_group_association.admin,
   ]
+}
+
+################################################################################
+# AAD SSH Login Extension
+################################################################################
+# Enables Azure AD-based SSH login — no SSH keys or passwords needed.
+# Equivalent to: AWS SSM Session Manager, GCP IAP tunneling
+# Usage: az ssh vm --resource-group <rg> --name <vm>
+################################################################################
+
+resource "azurerm_virtual_machine_extension" "aad_ssh" {
+  name                 = "AADSSHLoginForLinux"
+  virtual_machine_id   = azurerm_linux_virtual_machine.admin.id
+  publisher            = "Microsoft.Azure.ActiveDirectory"
+  type                 = "AADSSHLoginForLinux"
+  type_handler_version = "1.0"
+}
+
+# Grant the deployer VM Administrator Login so they can SSH via AAD
+resource "azurerm_role_assignment" "vm_admin_login" {
+  scope                = azurerm_linux_virtual_machine.admin.id
+  role_definition_name = "Virtual Machine Administrator Login"
+  principal_id         = data.azurerm_client_config.current.object_id
 }
