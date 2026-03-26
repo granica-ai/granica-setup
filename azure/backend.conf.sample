@@ -1,0 +1,12 @@
+# Azure Storage backend for Terraform state
+# Pre-requisite: create these resources once before first terraform init:
+#
+#   az group create --name granica-tfstate-rg --location <region>
+#   az storage account create --name <account-name> --resource-group granica-tfstate-rg \
+#     --location <region> --sku Standard_LRS --encryption-services blob
+#   az storage container create --name tfstate --account-name <account-name>
+
+resource_group_name  = "granica-tfstate-rg"
+storage_account_name = "granicastatestore"
+container_name       = "tfstate"
+key                  = "admin-server/terraform.tfstate"
