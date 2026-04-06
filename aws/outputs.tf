@@ -22,3 +22,8 @@ output "public_ip" {
   description = "The public IP address of the Admin Server EC2 instance"
   value       = var.public_ip_enabled ? aws_instance.admin_server.public_ip : "NOT_ENABLED"
 }
+
+output "permission_boundary_arn" {
+  description = "ARN of the permission boundary policy for Granica IAM roles. Pass this to krypton via config.tfvars as permission_boundary_arn."
+  value       = var.enable_permission_boundary ? aws_iam_policy.permission_boundary[0].arn : ""
+}

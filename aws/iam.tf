@@ -2,6 +2,69 @@ resource "random_id" "random_suffix" {
   byte_length = 4
 }
 
+################################################################################
+# Permission Boundary — caps what any role created by the admin EC2 can do.
+# Blocks IAM/STS escalation so a compromised EC2 cannot create or modify roles
+# to gain broader access in the customer account.
+################################################################################
+
+resource "aws_iam_policy" "permission_boundary" {
+  count = var.enable_permission_boundary ? 1 : 0
+
+  name   = "granica-role-boundary-${random_id.random_suffix.hex}"
+  policy = data.aws_iam_policy_document.permission_boundary.json
+}
+
+data "aws_iam_policy_document" "permission_boundary" {
+  # Allow all non-escalation actions — workload roles need S3, EC2, EKS, ELB,
+  # ECR, SQS, SSM, RDS, EFS, CloudWatch, Autoscaling, Pricing, etc.
+  statement {
+    sid       = "AllowWorkloadActions"
+    effect    = "Allow"
+    actions   = ["*"]
+    resources = ["*"]
+  }
+
+  # Deny IAM write actions that enable privilege escalation.
+  # A role bounded by this policy cannot create/modify/delete other roles or
+  # policies, even if AdministratorAccess is attached to it.
+  statement {
+    sid    = "DenyIAMEscalation"
+    effect = "Deny"
+    actions = [
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:AttachRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:PutRolePolicy",
+      "iam:DeleteRolePolicy",
+      "iam:PutRolePermissionsBoundary",
+      "iam:DeleteRolePermissionsBoundary",
+      "iam:UpdateAssumeRolePolicy",
+      "iam:CreatePolicy",
+      "iam:CreatePolicyVersion",
+      "iam:DeletePolicy",
+      "iam:DeletePolicyVersion",
+      "iam:CreateUser",
+      "iam:DeleteUser",
+      "iam:AttachUserPolicy",
+      "iam:DetachUserPolicy",
+      "iam:PutUserPolicy",
+      "iam:DeleteUserPolicy",
+      "iam:CreateAccessKey",
+      "iam:CreateLoginProfile",
+      "iam:UpdateLoginProfile",
+      "iam:CreateOpenIDConnectProvider",
+      "iam:DeleteOpenIDConnectProvider",
+    ]
+    resources = ["*"]
+  }
+}
+
+locals {
+  permission_boundary_arn = var.enable_permission_boundary ? aws_iam_policy.permission_boundary[0].arn : ""
+}
+
 resource "aws_iam_role" "admin" {
   name               = "project-n-admin-${random_id.random_suffix.hex}"
   assume_role_policy = <<EOF
@@ -123,25 +186,19 @@ data "aws_iam_policy_document" "deploy" {
     resources = ["*"]
   }
 
+  # IAM read-only and tagging actions on Granica-namespaced resources.
+  # Write actions (CreateRole, AttachRolePolicy, etc.) are in separate
+  # statements below with tighter conditions.
   statement {
-    sid    = "IAM"
+    sid    = "IAMReadAndTag"
     effect = "Allow"
     actions = [
-      "iam:DeleteRolePolicy",
       "iam:AddClientIDToOpenIDConnectProvider",
       "iam:AddRoleToInstanceProfile",
-      "iam:AttachRolePolicy",
       "iam:CreateInstanceProfile",
       "iam:CreateOpenIDConnectProvider",
-      "iam:CreatePolicy",
-      "iam:CreatePolicyVersion",
-      "iam:CreateRole",
       "iam:CreateServiceLinkedRole",
       "iam:DeleteInstanceProfile",
-      "iam:DeletePolicy",
-      "iam:DeletePolicyVersion",
-      "iam:DeleteRole",
-      "iam:DetachRolePolicy",
       "iam:DeleteOpenIDConnectProvider",
       "iam:GetInstanceProfile",
       "iam:GetOpenIDConnectProvider",
@@ -156,9 +213,6 @@ data "aws_iam_policy_document" "deploy" {
       "iam:ListPolicyVersions",
       "iam:ListRolePolicies",
       "iam:ListRoleTags",
-      "iam:PassRole",
-      "iam:PutRolePermissionsBoundary",
-      "iam:PutRolePolicy",
       "iam:RemoveRoleFromInstanceProfile",
       "iam:SimulatePrincipalPolicy",
       "iam:TagRole",
@@ -169,8 +223,7 @@ data "aws_iam_policy_document" "deploy" {
       "iam:UntagInstanceProfile",
       "iam:TagOpenIDConnectProvider",
       "iam:UntagOpenIDConnectProvider",
-      "iam:UpdateAssumeRolePolicy",
-      "iam:UpdateOpenIDConnectProviderThumbprint"
+      "iam:UpdateOpenIDConnectProviderThumbprint",
     ]
     resources = [
       "arn:aws:iam::*:instance-profile/project-n-*",
@@ -183,8 +236,135 @@ data "aws_iam_policy_document" "deploy" {
       "arn:aws:iam::*:oidc-provider/oidc.eks.*.amazonaws.com/id/*",
       "arn:aws:iam::*:role/aws-service-role/eks.amazonaws.com/AWSServiceRoleForAmazonEKS",
       "arn:aws:iam::*:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling",
-      "arn:aws:iam::*:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing"
+      "arn:aws:iam::*:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing",
     ]
+  }
+
+  # CreateRole — only allowed when the permission boundary is attached.
+  # This prevents the EC2 from creating roles that exceed the boundary ceiling.
+  statement {
+    sid    = "IAMCreateRoleWithBoundary"
+    effect = "Allow"
+    actions = [
+      "iam:CreateRole",
+    ]
+    resources = [
+      "arn:aws:iam::*:role/project-n-*",
+      "arn:aws:iam::*:role/granica-*",
+    ]
+    dynamic "condition" {
+      for_each = var.enable_permission_boundary ? [1] : []
+      content {
+        test     = "StringEquals"
+        variable = "iam:PermissionsBoundary"
+        values   = [aws_iam_policy.permission_boundary[0].arn]
+      }
+    }
+  }
+
+  # Role policy management — scoped to Granica-namespaced roles/policies only.
+  statement {
+    sid    = "IAMRolePolicyManagement"
+    effect = "Allow"
+    actions = [
+      "iam:AttachRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:PutRolePolicy",
+      "iam:DeleteRolePolicy",
+      "iam:DeleteRole",
+      "iam:UpdateAssumeRolePolicy",
+      "iam:CreatePolicy",
+      "iam:CreatePolicyVersion",
+      "iam:DeletePolicy",
+      "iam:DeletePolicyVersion",
+    ]
+    resources = [
+      "arn:aws:iam::*:policy/project-n-*",
+      "arn:aws:iam::*:policy/granica-*",
+      "arn:aws:iam::*:role/project-n-*",
+      "arn:aws:iam::*:role/granica-*",
+    ]
+  }
+
+  # AttachRolePolicy — restrict which managed policies can be attached.
+  # Only Granica-namespaced policies and specific AWS managed policies are allowed.
+  statement {
+    sid    = "IAMAttachRolePolicyRestricted"
+    effect = "Allow"
+    actions = [
+      "iam:AttachRolePolicy",
+    ]
+    resources = [
+      "arn:aws:iam::*:role/project-n-*",
+      "arn:aws:iam::*:role/granica-*",
+    ]
+    condition {
+      test     = "ArnLike"
+      variable = "iam:PolicyARN"
+      values = [
+        "arn:aws:iam::*:policy/project-n-*",
+        "arn:aws:iam::*:policy/granica-*",
+        "arn:aws:iam::aws:policy/AmazonEKSClusterPolicy",
+        "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy",
+        "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore",
+        "arn:aws:iam::aws:policy/service-role/AmazonEBSCSIDriverPolicy",
+        "arn:aws:iam::aws:policy/service-role/AmazonEFSCSIDriverPolicy",
+      ]
+    }
+  }
+
+  # PassRole — only for cluster and worker roles, only to EKS and EC2 services.
+  # IRSA roles use OIDC trust and do NOT require PassRole.
+  statement {
+    sid     = "IAMPassRoleRestricted"
+    effect  = "Allow"
+    actions = ["iam:PassRole"]
+    resources = [
+      "arn:aws:iam::*:role/project-n-*-cluster",
+      "arn:aws:iam::*:role/project-n-*-workers",
+    ]
+    condition {
+      test     = "StringEquals"
+      variable = "iam:PassedToService"
+      values   = ["eks.amazonaws.com", "ec2.amazonaws.com"]
+    }
+  }
+
+  # PutRolePermissionsBoundary — only allow setting the Granica boundary.
+  # This lets Terraform manage boundaries on roles it creates, but prevents
+  # the EC2 from attaching a more permissive boundary or removing one.
+  dynamic "statement" {
+    for_each = var.enable_permission_boundary ? [1] : []
+    content {
+      sid     = "IAMBoundaryManagement"
+      effect  = "Allow"
+      actions = ["iam:PutRolePermissionsBoundary"]
+      resources = [
+        "arn:aws:iam::*:role/project-n-*",
+        "arn:aws:iam::*:role/granica-*",
+      ]
+      condition {
+        test     = "StringEquals"
+        variable = "iam:PermissionsBoundary"
+        values   = [aws_iam_policy.permission_boundary[0].arn]
+      }
+    }
+  }
+
+  # Deny removing permission boundaries — prevents escape from the ceiling.
+  dynamic "statement" {
+    for_each = var.enable_permission_boundary ? [1] : []
+    content {
+      sid    = "DenyBoundaryRemoval"
+      effect = "Deny"
+      actions = [
+        "iam:DeleteRolePermissionsBoundary",
+      ]
+      resources = [
+        "arn:aws:iam::*:role/project-n-*",
+        "arn:aws:iam::*:role/granica-*",
+      ]
+    }
   }
 
   statement {

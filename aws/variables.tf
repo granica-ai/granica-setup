@@ -70,6 +70,12 @@ variable "create_s3_vpc_endpoint" {
   description = "Set to false to skip creating the S3 Gateway VPC endpoint (e.g. VPC already has one; avoids RouteAlreadyExists). When null, defaults to false if existing_vpc_id is set, else true."
 }
 
+variable "enable_permission_boundary" {
+  type        = bool
+  default     = true
+  description = "Create and enforce a permission boundary on all IAM roles created during deployment. Prevents privilege escalation from the admin EC2 instance. Disable only for legacy deployments that need migration."
+}
+
 variable "instance_connect" {
   type        = string
   default     = ""
