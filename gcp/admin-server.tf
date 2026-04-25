@@ -59,6 +59,12 @@ resource "google_compute_instance" "vm_instance" {
   echo "Running yum update to catch any recent patches ..."
   sudo yum -y update
 
+  # Ensure CA certs are installed so Python can verify GCE metadata server (metadata.google.internal)
+  sudo yum install -y ca-certificates || true
+  sudo update-ca-trust 2>/dev/null || true
+  # Point Python/Google libs at system CA bundle (avoids SSL CERTIFICATE_VERIFY_FAILED on metadata)
+  grep -q 'SSL_CERT_FILE' /home/${var.granica_username}/.bashrc 2>/dev/null || echo 'export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt' >> /home/${var.granica_username}/.bashrc
+
   # Install Granica package with retry 
   max_attempts=5
   attempt_num=1
