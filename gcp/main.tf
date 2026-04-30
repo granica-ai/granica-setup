@@ -12,17 +12,32 @@ provider "google" {
   region  = var.region
 }
 
-# Get current GCP caller identity for owner_id
+# Get current GCP caller identity for owner_id.
+# In Cloud Shell, the default ADC token lacks the userinfo.email scope and
+# .email comes back null — fall back to Cloud Shell's $USER_EMAIL, then var.owner_id.
 data "google_client_openid_userinfo" "me" {
   provider = google.identity
 }
 
+# Cloud Shell sets $USER_EMAIL to the logged-in user's email. Outside Cloud Shell
+# this returns "", which the locals below treat as absent.
+data "external" "cloud_shell_user_email" {
+  program = ["sh", "-c", "printf '{\"email\":\"%s\"}' \"$${USER_EMAIL:-}\""]
+}
+
 # Sanitize email for GCP label constraints (lowercase, alphanumeric, underscores, dashes only, max 63 chars)
 locals {
-  sanitized_owner_id = substr(
+  detected_email      = try(data.google_client_openid_userinfo.me.email, null)
+  cloud_shell_email   = try(data.external.cloud_shell_user_email.result.email, "")
+  raw_owner_id = (
+    var.owner_id != "" ? var.owner_id :
+    local.detected_email != null ? local.detected_email :
+    local.cloud_shell_email
+  )
+  sanitized_owner_id = local.raw_owner_id == "" ? "" : substr(
     replace(
       replace(
-        lower(data.google_client_openid_userinfo.me.email),
+        lower(local.raw_owner_id),
         "@", "-at-"
       ),
       ".", "-"
@@ -37,10 +52,12 @@ provider "google" {
   project = var.project_id
   region  = var.region
 
-  default_labels = {
-    admin_server_name = "granica-admin-${var.server_name}"
-    owner_id          = local.sanitized_owner_id
-  }
+  default_labels = merge(
+    {
+      admin_server_name = "granica-admin-${var.server_name}"
+    },
+    local.sanitized_owner_id == "" ? {} : { owner_id = local.sanitized_owner_id },
+  )
 }
 
 resource "google_compute_network" "vpc_network" {

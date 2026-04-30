@@ -36,6 +36,12 @@ variable "machine_type" {
   default     = "e2-small"
 }
 
+variable "owner_id" {
+  type        = string
+  description = "Optional override for the owner_id label. If unset, the deployer's identity is auto-detected from gcloud ADC, then from Cloud Shell's $USER_EMAIL. If none of these are available, the label is omitted."
+  default     = ""
+}
+
 variable "server_name" {
   description = "Suffix for the admin server instance name"
   type        = string
