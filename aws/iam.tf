@@ -96,6 +96,7 @@ data "aws_iam_policy_document" "deploy" {
       "ec2:AssociateIamInstanceProfile",
       "ec2:CreateLaunchTemplate",
       "ec2:CreateLaunchTemplateVersion",
+      "ec2:DeleteLaunchTemplate",
       "ec2:CreateSecurityGroup",
       "ec2:AuthorizeSecurityGroupEgress",
       "ec2:RevokeSecurityGroupEgress",
