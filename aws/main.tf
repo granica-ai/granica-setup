@@ -14,6 +14,19 @@ data "aws_route_tables" "existing" {
   vpc_id = var.existing_vpc_id
 }
 
+locals {
+  # IAM naming + boundary lines for krypton's config.tfvars, included only for vars
+  # that differ from their defaults, so we never write blanks/defaults that would
+  # override krypton's own defaults. Empty string when everything is at defaults.
+  iam_config_tfvars = join("", concat(
+    var.role_path != "/" ? ["role_path               = \"${var.role_path}\"\n"] : [],
+    var.role_name_prefix != "" ? ["role_name_prefix        = \"${var.role_name_prefix}\"\n"] : [],
+    var.policy_name_prefix != "" ? ["policy_name_prefix      = \"${var.policy_name_prefix}\"\n"] : [],
+    var.policy_path != "/" ? ["policy_path             = \"${var.policy_path}\"\n"] : [],
+    var.permission_boundary_arn != "" ? ["permission_boundary_arn = \"${var.permission_boundary_arn}\"\n"] : [],
+  ))
+}
+
 module "vpc" {
   count   = length(var.existing_vpc_id) > 0 ? 0 : 1
   source  = "terraform-aws-modules/vpc/aws"
@@ -259,12 +272,9 @@ echo 'multi_az           = true' >> /home/ec2-user/config.tfvars
 echo "admin_server_name  = \"granica-admin-server-${var.server_name}\"" >> /home/ec2-user/config.tfvars
 echo "owner_id           = \"${data.aws_caller_identity.current.user_id}\"" >> /home/ec2-user/config.tfvars
 echo "owner_arn          = \"${data.aws_caller_identity.current.arn}\"" >> /home/ec2-user/config.tfvars
-# IAM naming + permission boundary for krypton's aws infra. Names must match krypton's variables.
-echo "role_path               = \"${var.role_path}\"" >> /home/ec2-user/config.tfvars
-echo "role_name_prefix        = \"${var.role_name_prefix}\"" >> /home/ec2-user/config.tfvars
-echo "policy_name_prefix      = \"${var.policy_name_prefix}\"" >> /home/ec2-user/config.tfvars
-echo "policy_path             = \"${var.policy_path}\"" >> /home/ec2-user/config.tfvars
-echo "permission_boundary_arn = \"${var.permission_boundary_arn}\"" >> /home/ec2-user/config.tfvars
+# IAM naming + permission boundary for krypton's aws infra (only vars set to
+# non-defaults; names must match krypton's variables). Writes nothing at defaults.
+printf '%s' '${local.iam_config_tfvars}' >> /home/ec2-user/config.tfvars
 chown ec2-user:ec2-user /home/ec2-user/config.tfvars
 
 max_attempts=5
