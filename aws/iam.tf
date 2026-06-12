@@ -2,9 +2,37 @@ resource "random_id" "random_suffix" {
   byte_length = 4
 }
 
+locals {
+  # The admin (deployer) role runs deployments and must create IAM roles/policies.
+  # Most boundaries (e.g. ones excluding iam:* from their broad allow) would block
+  # those create actions, so the boundary is applied to it only when explicitly
+  # opted in via permission_boundary_on_admin_role.
+  admin_permissions_boundary = var.permission_boundary_on_admin_role && var.permission_boundary_arn != "" ? var.permission_boundary_arn : null
+
+  # When this deployment uses a custom IAM role/policy prefix or path (matching
+  # krypton's role_name_prefix / role_path / policy_name_prefix / policy_path), the
+  # deployer must also be allowed to manage IAM resources in that namespace. Derived
+  # from the same vars so the scope stays in sync with how krypton names things,
+  # instead of a hand-maintained ARN list. Empty when prefix/path are at their
+  # defaults (the project-n-*/granica-* patterns already cover those).
+  custom_role_namespace   = var.role_path != "/" || var.role_name_prefix != ""
+  custom_policy_namespace = var.policy_path != "/" || var.policy_name_prefix != ""
+  derived_iam_resource_arns = concat(
+    local.custom_role_namespace ? [
+      "arn:aws:iam::*:role${var.role_path}${var.role_name_prefix}*",
+      "arn:aws:iam::*:instance-profile${var.role_path}${var.role_name_prefix}*",
+    ] : [],
+    local.custom_policy_namespace ? [
+      "arn:aws:iam::*:policy${var.policy_path}${var.policy_name_prefix}*",
+    ] : [],
+  )
+}
+
 resource "aws_iam_role" "admin" {
-  name               = "project-n-admin-${random_id.random_suffix.hex}"
-  assume_role_policy = <<EOF
+  name                 = substr("${var.role_name_prefix}project-n-admin-${random_id.random_suffix.hex}", 0, 64)
+  path                 = var.role_path
+  permissions_boundary = local.admin_permissions_boundary
+  assume_role_policy   = <<EOF
 {
   "Version": "2012-10-17",
   "Statement": [
@@ -22,32 +50,37 @@ EOF
 
 resource "aws_iam_instance_profile" "admin" {
   name = aws_iam_role.admin.name
+  path = var.role_path
   role = aws_iam_role.admin.name
 }
 
 resource "aws_iam_policy" "deploy" {
-  name   = "project-n-admin-deploy-${random_id.random_suffix.hex}"
+  name   = "${var.policy_name_prefix}project-n-admin-deploy-${random_id.random_suffix.hex}"
+  path   = var.policy_path
   policy = data.aws_iam_policy_document.deploy.json
 }
 
 resource "aws_iam_policy" "vpc" {
   count = var.manage_vpc && length(var.existing_vpc_id) == 0 ? 1 : 0
 
-  name   = "project-n-admin-vpc-permissions-${random_id.random_suffix.hex}"
+  name   = "${var.policy_name_prefix}project-n-admin-vpc-permissions-${random_id.random_suffix.hex}"
+  path   = var.policy_path
   policy = data.aws_iam_policy_document.vpc.json
 }
 
 resource "aws_iam_policy" "emr" {
   count = var.deploy_emr ? 1 : 0
 
-  name   = "project-n-admin-emr-permissions-${random_id.random_suffix.hex}"
+  name   = "${var.policy_name_prefix}project-n-admin-emr-permissions-${random_id.random_suffix.hex}"
+  path   = var.policy_path
   policy = data.aws_iam_policy_document.emr.json
 }
 
 resource "aws_iam_policy" "efs" {
   count = var.airflow_enabled ? 1 : 0
 
-  name   = "project-n-admin-efs-permissions-${random_id.random_suffix.hex}"
+  name   = "${var.policy_name_prefix}project-n-admin-efs-permissions-${random_id.random_suffix.hex}"
+  path   = var.policy_path
   policy = data.aws_iam_policy_document.efs.json
 }
 
@@ -107,6 +140,7 @@ data "aws_iam_policy_document" "deploy" {
       "ec2:Describe*",
       "ec2:GetLaunchTemplateData",
       "ec2:RunInstances",
+      "ec2:TerminateInstances",
       "eks:CreateCluster",
       "eks:DeleteCluster",
       "eks:ListClusters",
@@ -173,7 +207,11 @@ data "aws_iam_policy_document" "deploy" {
       "iam:UpdateAssumeRolePolicy",
       "iam:UpdateOpenIDConnectProviderThumbprint"
     ]
-    resources = [
+    # Extra ARNs cover IAM resources placed outside the default project-n-*/granica-*
+    # namespaces when this deployment sets role_path / role_name_prefix /
+    # policy_path / policy_name_prefix (e.g. role/OneCloud/CustomerManaged-*,
+    # policy/CustomerManaged_*). Derived in locals; empty when those are at defaults.
+    resources = concat([
       "arn:aws:iam::*:instance-profile/project-n-*",
       "arn:aws:iam::*:instance-profile/granica-*",
       "arn:aws:iam::*:policy/project-n-*",
@@ -185,7 +223,7 @@ data "aws_iam_policy_document" "deploy" {
       "arn:aws:iam::*:role/aws-service-role/eks.amazonaws.com/AWSServiceRoleForAmazonEKS",
       "arn:aws:iam::*:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling",
       "arn:aws:iam::*:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing"
-    ]
+    ], local.derived_iam_resource_arns)
   }
 
   statement {

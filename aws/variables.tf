@@ -89,3 +89,58 @@ variable "instance_connect" {
     error_message = "instance_connect must be empty, \"create\", or a security group id starting with sg- (case-insensitive)."
   }
 }
+
+# IAM role / policy naming + permission boundary controls.
+# These mirror the same-named variables in krypton (MR !1987) so the deployer's
+# roles/policies follow the customer's naming convention, and the deployer is
+# scoped to manage IAM in that same namespace (see locals in iam.tf).
+variable "role_name_prefix" {
+  type        = string
+  default     = ""
+  description = "Prefix prepended to every IAM role name created by this module (e.g. \"CustomerManaged-\")."
+}
+
+variable "role_path" {
+  type        = string
+  default     = "/"
+  description = "IAM path for every IAM role created by this module (e.g. \"/OneCloud/\"). Must start and end with \"/\"."
+
+  validation {
+    condition     = can(regex("^/(.*/)?$", var.role_path))
+    error_message = "role_path must start and end with \"/\" (e.g. \"/\" or \"/OneCloud/\")."
+  }
+}
+
+variable "policy_name_prefix" {
+  type        = string
+  default     = ""
+  description = "Prefix prepended to every IAM policy name created by this module (e.g. \"CustomerManaged_\"). Configured separately from role_name_prefix."
+}
+
+variable "policy_path" {
+  type        = string
+  default     = "/"
+  description = "IAM path for every IAM policy created by this module (e.g. \"/\"). Must start and end with \"/\"."
+
+  validation {
+    condition     = can(regex("^/(.*/)?$", var.policy_path))
+    error_message = "policy_path must start and end with \"/\" (e.g. \"/\")."
+  }
+}
+
+variable "permission_boundary_arn" {
+  type        = string
+  default     = ""
+  description = "ARN of an existing IAM policy to attach as the permissions boundary on IAM roles created by this module. Empty string means no boundary."
+}
+
+variable "permission_boundary_on_admin_role" {
+  type        = bool
+  default     = true
+  description = <<-EOT
+    Whether to attach permission_boundary_arn to the admin (deployer) role itself.
+    On by default. Note: the admin role must create IAM roles/policies during
+    deployment, so the configured boundary must permit the deployer's iam/ec2/eks
+    write actions; set this false if the boundary would otherwise block them.
+  EOT
+}
