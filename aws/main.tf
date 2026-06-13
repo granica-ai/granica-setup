@@ -259,6 +259,9 @@ echo 'multi_az           = true' >> /home/ec2-user/config.tfvars
 echo "admin_server_name  = \"granica-admin-server-${var.server_name}\"" >> /home/ec2-user/config.tfvars
 echo "owner_id           = \"${data.aws_caller_identity.current.user_id}\"" >> /home/ec2-user/config.tfvars
 echo "owner_arn          = \"${data.aws_caller_identity.current.arn}\"" >> /home/ec2-user/config.tfvars
+%{if var.enable_permission_boundary~}
+echo "permission_boundary_arn = \"${aws_iam_policy.permission_boundary[0].arn}\"" >> /home/ec2-user/config.tfvars
+%{endif~}
 chown ec2-user:ec2-user /home/ec2-user/config.tfvars
 
 max_attempts=5
