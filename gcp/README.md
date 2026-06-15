@@ -50,20 +50,8 @@ If you are working in Cloud Shell you must be logged in as Admin. If you are run
    region         = "us-central1"
    zone           = "us-central1-a"
    package_url    = "https://granica.ai/granica.rpm"
-   server_name    = "CHANGE_ME"            # <= 15 chars (GCP naming limit)
+   server_name    = "CHANGE_ME"
    ```
-
-   Optional variables (sensible defaults; override only if needed):
-   ```bash
-   # owner_id        = "you@example.com"   # Owner label on created resources. Auto-detected from gcloud ADC,
-   #                                        # then Cloud Shell's $USER_EMAIL; set this only to override.
-   # machine_type    = "e2-small"          # Admin server machine type
-   # granica_username = "granica"          # Linux user that owns the Granica install on the admin server
-   # admin_image_uri = "projects/granica-customer-resources/global/images/family/granica-admin"
-   ```
-
-   > **Note:** Unlike AWS, the GCP module does not expose IAM role/policy naming or permission-boundary
-   > variables — those are an AWS IAM concept and have no GCP equivalent here.
 
 6. Run the following
    ```bash
