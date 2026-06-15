@@ -52,7 +52,18 @@ server_name = "my-server"                # Optional: suffix for admin server nam
 airflow_enabled = true                   # Optional: enables EFS permissions for Airflow deployment (defaults to false)
 ```
 
-**Existing VPC (optional):** Set `existing_vpc_id` (and subnets) to deploy into an existing VPC instead of creating a new one:
+Create `backend.conf` in this directory so Terraform stores its state in S3. Set `key` to a value unique to this admin server. A sample is provided in `backend.conf.sample` and below:
+```hcl
+bucket = "your-bucket"                  # S3 bucket that holds the Terraform state
+region = "your-state-bucket-region"     # Region where the state bucket lives
+key    = "your-unique-key"              # Change this to a unique identifier for your deployment
+```
+
+**Note:** The `key` identifies your deployment and the state stored in the AWS bucket. You can reuse the same key to continue with a previously created deployment. If you reuse a previous key and want to start fresh, make sure the cleanup steps below have been completed first.
+
+**2.1 [Optional] Existing VPC**
+
+Set `existing_vpc_id` (and subnets) to deploy into an existing VPC instead of creating a new one:
 ```hcl
 existing_vpc_id             = "vpc-xxxxxxxxx"
 existing_private_subnet_ids  = ["subnet-aaa", "subnet-bbb"]
@@ -60,7 +71,9 @@ existing_public_subnet_ids   = ["subnet-ccc"]   # Required only if public_ip_ena
 ```
 The admin server is placed in the first private (or public, if `public_ip_enabled`) subnet. By default, an S3 Gateway VPC endpoint is *not* created when `existing_vpc_id` is set (to avoid `RouteAlreadyExists`). Set `create_s3_vpc_endpoint = true` to create it anyway.
 
-**IAM role/policy naming and permission boundary (optional):** If your AWS account enforces an IAM naming convention, an IAM path, or a permissions boundary (e.g. a centrally-governed "customer-managed" model), set the variables below. They control how this module names and scopes the roles/policies it creates. All default to "off", so omit them entirely unless your account requires them:
+**2.2 [Optional] IAM role/policy naming and permission boundary**
+
+If your AWS account enforces an IAM naming convention, an IAM path, or a permissions boundary (e.g. a centrally-governed "customer-managed" model), set the variables below. They control how this module names and scopes the roles/policies it creates. All default to "off", so omit them entirely unless your account requires them:
 
 ```hcl
 role_path                         = "/OneCloud/"                                          # IAM path for all roles created (must start and end with "/")
@@ -70,15 +83,6 @@ policy_path                       = "/"                                         
 permission_boundary_arn           = "arn:aws:iam::<ACCOUNT_ID>:policy/BasicRole_Boundary" # Permissions boundary attached to roles created by this module
 permission_boundary_on_admin_role = false                                                 # Also attach the boundary to the admin/deployer role?
 ```
-
-Finally, create `backend.conf` in this directory so Terraform stores its state in S3. Set `key` to a value unique to this admin server. A sample is provided in `backend.conf.sample` and below:
-```hcl
-bucket = "kry-ci-granica-setup-terraform-state"
-region = "us-west-2"                    # Don't change. This is the region for the AWS bucket that contains the terraform state.
-key    = "your-unique-key"              # Change this to a unique identifier for your deployment
-```
-
-**Note:** The `key` identifies your deployment and the state stored in the AWS bucket. You can reuse the same key to continue with a previously created deployment. If you reuse a previous key and want to start fresh, make sure the cleanup steps below have been completed first.
 
 **3. Deploy the admin server**
 ```bash
