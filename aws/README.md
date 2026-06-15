@@ -25,7 +25,7 @@ Use the **same** `export` lines in any later session before `terraform init`, `t
 
 If you already ran `init` without this and hit “no space left”, remove the old local cache under `granica-setup/aws/.terraform` and default plugin dirs under `$HOME/.terraform.d` if present, then set the variables above and run `terraform init` again.
 
-### Quick Start (Dev Mode)
+### Setup
 
 **1. Install Terraform and Clone Granica Setup Repo**
 ```bash
@@ -52,7 +52,18 @@ server_name = "my-server"                # Optional: suffix for admin server nam
 airflow_enabled = true                   # Optional: enables EFS permissions for Airflow deployment (defaults to false)
 ```
 
-**Existing VPC (optional):** Set `existing_vpc_id` (and subnets) to deploy into an existing VPC instead of creating a new one:
+Create `backend.conf` in this directory so Terraform stores its state in S3. Set `key` to a value unique to this admin server. A sample is provided in `backend.conf.sample` and below:
+```hcl
+bucket = "your-bucket"                  # S3 bucket that holds the Terraform state
+region = "your-state-bucket-region"     # Region where the state bucket lives
+key    = "your-unique-key"              # Change this to a unique identifier for your deployment
+```
+
+**Note:** The `key` identifies your deployment and the state stored in the AWS bucket. You can reuse the same key to continue with a previously created deployment. If you reuse a previous key and want to start fresh, make sure the cleanup steps below have been completed first.
+
+**2.1 [Optional] Existing VPC**
+
+Set `existing_vpc_id` (and subnets) to deploy into an existing VPC instead of creating a new one:
 ```hcl
 existing_vpc_id             = "vpc-xxxxxxxxx"
 existing_private_subnet_ids  = ["subnet-aaa", "subnet-bbb"]
@@ -60,68 +71,45 @@ existing_public_subnet_ids   = ["subnet-ccc"]   # Required only if public_ip_ena
 ```
 The admin server is placed in the first private (or public, if `public_ip_enabled`) subnet. By default, an S3 Gateway VPC endpoint is *not* created when `existing_vpc_id` is set (to avoid `RouteAlreadyExists`). Set `create_s3_vpc_endpoint = true` to create it anyway.
 
-**Connect to the admin instance:** Variable **`instance_connect`** (default **empty**): use **Session Manager** (the instance profile includes `AmazonSSMManagedInstanceCore`) or your own path. Set to **`"create"`** to create an EC2 Instance Connect Endpoint and its security group, or to a security group id (**`sg-...`**) to allow ingress from an existing endpoint or bastion without creating resources.
+**2.2 [Optional] IAM role/policy naming and permission boundary**
 
-**Session Manager and `ssm-user`:** A session opened with **`aws ssm start-session`** (or the console **Session Manager** connect action) runs as Linux user **`ssm-user`**, not **`ec2-user`**. User data, `config.tfvars`, and Granica-related files under `/home/ec2-user` are owned by **`ec2-user`**. After the session starts, switch accounts:
+If your AWS account enforces an IAM naming convention, an IAM path, or a permissions boundary (e.g. a centrally-governed "customer-managed" model), set the variables below. They control how this module names and scopes the roles/policies it creates. All default to "off", so omit them entirely unless your account requires them:
 
-```bash
-whoami                    # ssm-user
-sudo su - ec2-user
-whoami                    # ec2-user
-```
-
-Then run **`granica deploy --var-file=config.tfvars`** (and similar) from **`ec2-user`**.
-
-**Avoiding S3 `RouteAlreadyExists`:** If the VPC already has an S3 gateway endpoint, set `create_s3_vpc_endpoint = false`.
 ```hcl
-instance_connect         = "create"              # or "sg-xxxxxxxxx", or omit for Session Manager only
-create_s3_vpc_endpoint   = false
+role_path                         = "/OneCloud/"                                          # IAM path for all roles created (must start and end with "/")
+role_name_prefix                  = "CustomerManagedBasic-"                               # Prefix prepended to every role name
+policy_name_prefix                = "CustomerManaged_"                                    # Prefix prepended to every policy name
+policy_path                       = "/"                                                   # IAM path for all policies (must start and end with "/")
+permission_boundary_arn           = "arn:aws:iam::<ACCOUNT_ID>:policy/BasicRole_Boundary" # Permissions boundary attached to roles created by this module
+permission_boundary_on_admin_role = false                                                 # Also attach the boundary to the admin/deployer role?
 ```
 
-Create `backend.conf` in this directory, making sure to set the key to a name unique to the admin server and tfstate. A sample is provided in `backend.conf.sample` and below:
-```hcl
-bucket = "kry-ci-granica-setup-terraform-state"
-region = "us-west-2"                    # Don't change. This is the region for the AWS bucket that contains the terraform state.
-key    = "your-unique-key"              # Change this to a unique identifier for your deployment
-```
-
-**Note:** The `key` provided identifies your deployment and the state stored in the AWS bucket. You can use the same key to continue with a previously created deployment. If you use a previous key and want to start fresh then make sure that cleanup steps below have been completed.
-
-**3. Deploy**
+**3. Deploy the admin server**
 ```bash
 terraform init -backend-config=backend.conf
 terraform apply
 ```
 
-Your admin server will be created with the name `granica-admin-server-{server_name}`.
+This creates the admin server (named `granica-admin-server-{server_name}`) along with its VPC/subnets. Granica itself is **not** deployed yet — that runs from the admin server in the next step.
 
-**4. Granica Setup**
+**4. Run Granica Setup from the admin server**
 
-After the deployment, you can set up Granica by following these steps:
+Once `terraform apply` finishes, connect to the admin server and deploy Granica from it:
 
-- Connect to the `granica-admin-server-{server_name}` instance (EC2 console **Connect** → Session Manager, or the `aws ssm start-session` command from `terraform output admin_server_ec2_instance_connect_endpoint_connect_command`).
-- If you used Session Manager, **`sudo su - ec2-user`** first (see **Session Manager and `ssm-user`** above).
-- Run **`granica deploy --var-file=config.tfvars`**
+- **Connect** to the `granica-admin-server-{server_name}` instance — EC2 console **Connect → Session Manager**, or the `aws ssm start-session` command from `terraform output admin_server_ec2_instance_connect_endpoint_connect_command`.
+- **Switch to `ec2-user`.** A Session Manager session starts as Linux user **`ssm-user`**, but `config.tfvars` and the Granica files under `/home/ec2-user` are owned by **`ec2-user`**, so switch accounts first:
 
-### Production Setup (Optional)
+  ```bash
+  whoami                    # ssm-user
+  sudo su - ec2-user
+  whoami                    # ec2-user
+  ```
 
-For production deployments, it is essential to preserve the Terraform state (tfstate) for the admin server itself. This is achieved by creating a custom backend configuration file, `backend.conf`, which specifies the S3 bucket to store the Terraform state.
+- **Deploy Granica:**
 
-**1. Create backend.conf**
-```hcl
-bucket = "your-terraform-state-bucket"    # S3 bucket to store Terraform state
-region = "your-state-bucket-region"       # Region where the S3 bucket is located
-key    = "your-cluster-key"               # Unique identifier for this deployment
-```
-
-**2. Deploy with Custom State Configuration**
-```bash
-# CloudShell: export TF_DATA_DIR / TF_PLUGIN_CACHE_DIR as in Quick Start
-terraform init -backend-config=backend.conf
-terraform apply
-```
-
-By using this custom backend configuration, your admin server will be created with the name `granica-admin-server-{key}`, where `key` is the value specified in `backend.conf`. This approach ensures that the Terraform state is safely stored in the specified S3 bucket, allowing for easier management and versioning of your infrastructure deployments.
+  ```bash
+  granica deploy --var-file=config.tfvars
+  ```
 
 ### Cleanup
 
