@@ -60,7 +60,7 @@ existing_public_subnet_ids   = ["subnet-ccc"]   # Required only if public_ip_ena
 ```
 The admin server is placed in the first private (or public, if `public_ip_enabled`) subnet. By default, an S3 Gateway VPC endpoint is *not* created when `existing_vpc_id` is set (to avoid `RouteAlreadyExists`). Set `create_s3_vpc_endpoint = true` to create it anyway.
 
-**IAM role/policy naming and permission boundary (optional):** If your AWS account enforces an IAM naming convention, an IAM path, or a permissions boundary (e.g. a centrally-governed "customer-managed" model), set the variables below. They control how this module names and scopes the roles/policies it creates **and** are forwarded to `granica deploy` (written into the admin server's `config.tfvars`) so the Granica infrastructure roles created later follow the same convention. All default to "off", so omit them entirely unless your account requires them:
+**IAM role/policy naming and permission boundary (optional):** If your AWS account enforces an IAM naming convention, an IAM path, or a permissions boundary (e.g. a centrally-governed "customer-managed" model), set the variables below. They control how this module names and scopes the roles/policies it creates. All default to "off", so omit them entirely unless your account requires them:
 
 ```hcl
 role_path                         = "/OneCloud/"                                          # IAM path for all roles created (must start and end with "/")
@@ -70,10 +70,6 @@ policy_path                       = "/"                                         
 permission_boundary_arn           = "arn:aws:iam::<ACCOUNT_ID>:policy/BasicRole_Boundary" # Permissions boundary attached to roles created by this module
 permission_boundary_on_admin_role = false                                                 # Also attach the boundary to the admin/deployer role?
 ```
-
-Notes:
-- When `role_path`/`role_name_prefix` (or `policy_path`/`policy_name_prefix`) are set, the admin (deployer) role is automatically granted permission to manage IAM resources within that namespace (`role/<role_path><role_name_prefix>*`, `instance-profile/...`, `policy/<policy_path><policy_name_prefix>*`). At defaults the existing `project-n-*` / `granica-*` scoping is unchanged.
-- `permission_boundary_on_admin_role`: the admin role must create IAM roles and policies during deployment, so any boundary attached to it must still permit the deployer's `iam`/`ec2`/`eks` write actions. Leave it **`false`** if the boundary would block those actions; set it **`true`** only when the boundary has been explicitly extended to allow them.
 
 **Connect to the admin instance (optional):** Variable **`instance_connect`** (default **empty**): use **Session Manager** (the instance profile includes `AmazonSSMManagedInstanceCore`) or your own path. Set to **`"create"`** to create an EC2 Instance Connect Endpoint and its security group, or to a security group id (**`sg-...`**) to allow ingress from an existing endpoint or bastion without creating resources.
 
