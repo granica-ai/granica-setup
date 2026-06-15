@@ -18,3 +18,13 @@ server_name = "dev"
 
 # --- Optional: S3 gateway endpoint (avoids RouteAlreadyExists if VPC already has one) ---
 # create_s3_vpc_endpoint = false
+
+# --- Optional: IAM role/policy naming + permission boundary ---
+# Set these only if your account enforces an IAM naming convention, path, or permissions
+# boundary. Defaults are off; values are also forwarded to `granica deploy` via config.tfvars.
+# role_path                         = "/OneCloud/"               # IAM path for roles (must start and end with "/")
+# role_name_prefix                  = "CustomerManagedBasic-"    # prefix for role names
+# policy_name_prefix                = "CustomerManaged_"         # prefix for policy names
+# policy_path                       = "/"                        # IAM path for policies (must start and end with "/")
+# permission_boundary_arn           = "arn:aws:iam::<ACCOUNT_ID>:policy/BasicRole_Boundary"
+# permission_boundary_on_admin_role = false                      # also attach boundary to the admin/deployer role?
