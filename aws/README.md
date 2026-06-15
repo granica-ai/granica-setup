@@ -25,7 +25,7 @@ Use the **same** `export` lines in any later session before `terraform init`, `t
 
 If you already ran `init` without this and hit “no space left”, remove the old local cache under `granica-setup/aws/.terraform` and default plugin dirs under `$HOME/.terraform.d` if present, then set the variables above and run `terraform init` again.
 
-### Quick Start (Dev Mode)
+### Setup
 
 **1. Install Terraform and Clone Granica Setup Repo**
 ```bash
@@ -106,26 +106,6 @@ Once `terraform apply` finishes, connect to the admin server and deploy Granica 
   ```bash
   granica deploy --var-file=config.tfvars
   ```
-
-### Production Setup (Optional)
-
-For production deployments, it is essential to preserve the Terraform state (tfstate) for the admin server itself. This is achieved by creating a custom backend configuration file, `backend.conf`, which specifies the S3 bucket to store the Terraform state.
-
-**1. Create backend.conf**
-```hcl
-bucket = "your-terraform-state-bucket"    # S3 bucket to store Terraform state
-region = "your-state-bucket-region"       # Region where the S3 bucket is located
-key    = "your-cluster-key"               # Unique identifier for this deployment
-```
-
-**2. Deploy with Custom State Configuration**
-```bash
-# CloudShell: export TF_DATA_DIR / TF_PLUGIN_CACHE_DIR as in Quick Start
-terraform init -backend-config=backend.conf
-terraform apply
-```
-
-By using this custom backend configuration, your admin server will be created with the name `granica-admin-server-{key}`, where `key` is the value specified in `backend.conf`. This approach ensures that the Terraform state is safely stored in the specified S3 bucket, allowing for easier management and versioning of your infrastructure deployments.
 
 ### Cleanup
 
