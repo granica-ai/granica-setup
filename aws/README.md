@@ -71,8 +71,6 @@ permission_boundary_arn           = "arn:aws:iam::<ACCOUNT_ID>:policy/BasicRole_
 permission_boundary_on_admin_role = false                                                 # Also attach the boundary to the admin/deployer role?
 ```
 
-**Connect to the admin instance (optional):** Variable **`instance_connect`** (default **empty**): use **Session Manager** (the instance profile includes `AmazonSSMManagedInstanceCore`) or your own path. Set to **`"create"`** to create an EC2 Instance Connect Endpoint and its security group, or to a security group id (**`sg-...`**) to allow ingress from an existing endpoint or bastion without creating resources.
-
 Finally, create `backend.conf` in this directory so Terraform stores its state in S3. Set `key` to a value unique to this admin server. A sample is provided in `backend.conf.sample` and below:
 ```hcl
 bucket = "kry-ci-granica-setup-terraform-state"
