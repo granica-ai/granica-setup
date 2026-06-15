@@ -75,42 +75,43 @@ Notes:
 - When `role_path`/`role_name_prefix` (or `policy_path`/`policy_name_prefix`) are set, the admin (deployer) role is automatically granted permission to manage IAM resources within that namespace (`role/<role_path><role_name_prefix>*`, `instance-profile/...`, `policy/<policy_path><policy_name_prefix>*`). At defaults the existing `project-n-*` / `granica-*` scoping is unchanged.
 - `permission_boundary_on_admin_role`: the admin role must create IAM roles and policies during deployment, so any boundary attached to it must still permit the deployer's `iam`/`ec2`/`eks` write actions. Leave it **`false`** if the boundary would block those actions; set it **`true`** only when the boundary has been explicitly extended to allow them.
 
-**Connect to the admin instance:** Variable **`instance_connect`** (default **empty**): use **Session Manager** (the instance profile includes `AmazonSSMManagedInstanceCore`) or your own path. Set to **`"create"`** to create an EC2 Instance Connect Endpoint and its security group, or to a security group id (**`sg-...`**) to allow ingress from an existing endpoint or bastion without creating resources.
+**Connect to the admin instance (optional):** Variable **`instance_connect`** (default **empty**): use **Session Manager** (the instance profile includes `AmazonSSMManagedInstanceCore`) or your own path. Set to **`"create"`** to create an EC2 Instance Connect Endpoint and its security group, or to a security group id (**`sg-...`**) to allow ingress from an existing endpoint or bastion without creating resources.
 
-**Session Manager and `ssm-user`:** A session opened with **`aws ssm start-session`** (or the console **Session Manager** connect action) runs as Linux user **`ssm-user`**, not **`ec2-user`**. User data, `config.tfvars`, and Granica-related files under `/home/ec2-user` are owned by **`ec2-user`**. After the session starts, switch accounts:
-
-```bash
-whoami                    # ssm-user
-sudo su - ec2-user
-whoami                    # ec2-user
-```
-
-Then run **`granica deploy --var-file=config.tfvars`** (and similar) from **`ec2-user`**.
-
-Create `backend.conf` in this directory, making sure to set the key to a name unique to the admin server and tfstate. A sample is provided in `backend.conf.sample` and below:
+Finally, create `backend.conf` in this directory so Terraform stores its state in S3. Set `key` to a value unique to this admin server. A sample is provided in `backend.conf.sample` and below:
 ```hcl
 bucket = "kry-ci-granica-setup-terraform-state"
 region = "us-west-2"                    # Don't change. This is the region for the AWS bucket that contains the terraform state.
 key    = "your-unique-key"              # Change this to a unique identifier for your deployment
 ```
 
-**Note:** The `key` provided identifies your deployment and the state stored in the AWS bucket. You can use the same key to continue with a previously created deployment. If you use a previous key and want to start fresh then make sure that cleanup steps below have been completed.
+**Note:** The `key` identifies your deployment and the state stored in the AWS bucket. You can reuse the same key to continue with a previously created deployment. If you reuse a previous key and want to start fresh, make sure the cleanup steps below have been completed first.
 
-**3. Deploy**
+**3. Deploy the admin server**
 ```bash
 terraform init -backend-config=backend.conf
 terraform apply
 ```
 
-Your admin server will be created with the name `granica-admin-server-{server_name}`.
+This creates the admin server (named `granica-admin-server-{server_name}`) along with its VPC/subnets. Granica itself is **not** deployed yet — that runs from the admin server in the next step.
 
-**4. Granica Setup**
+**4. Run Granica Setup from the admin server**
 
-After the deployment, you can set up Granica by following these steps:
+Once `terraform apply` finishes, connect to the admin server and deploy Granica from it:
 
-- Connect to the `granica-admin-server-{server_name}` instance (EC2 console **Connect** → Session Manager, or the `aws ssm start-session` command from `terraform output admin_server_ec2_instance_connect_endpoint_connect_command`).
-- If you used Session Manager, **`sudo su - ec2-user`** first (see **Session Manager and `ssm-user`** above).
-- Run **`granica deploy --var-file=config.tfvars`**
+- **Connect** to the `granica-admin-server-{server_name}` instance — EC2 console **Connect → Session Manager**, or the `aws ssm start-session` command from `terraform output admin_server_ec2_instance_connect_endpoint_connect_command`.
+- **Switch to `ec2-user`.** A Session Manager session starts as Linux user **`ssm-user`**, but `config.tfvars` and the Granica files under `/home/ec2-user` are owned by **`ec2-user`**, so switch accounts first:
+
+  ```bash
+  whoami                    # ssm-user
+  sudo su - ec2-user
+  whoami                    # ec2-user
+  ```
+
+- **Deploy Granica:**
+
+  ```bash
+  granica deploy --var-file=config.tfvars
+  ```
 
 ### Production Setup (Optional)
 
