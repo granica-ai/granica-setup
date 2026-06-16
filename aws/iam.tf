@@ -34,6 +34,32 @@ locals {
   )
 }
 
+# These admin-role resources newly gained a count for byo_admin_role. The moved
+# blocks migrate existing (non-BYO) states from the un-indexed address to [0] so
+# `terraform plan` is a no-op instead of destroy+recreate (which would yank the
+# instance profile off the running admin EC2). vpc/emr/efs policies + attachments
+# were already count-gated, so they stay at [0] and need no migration.
+moved {
+  from = aws_iam_role.admin
+  to   = aws_iam_role.admin[0]
+}
+moved {
+  from = aws_iam_instance_profile.admin
+  to   = aws_iam_instance_profile.admin[0]
+}
+moved {
+  from = aws_iam_policy.deploy
+  to   = aws_iam_policy.deploy[0]
+}
+moved {
+  from = aws_iam_role_policy_attachment.admin-deploy
+  to   = aws_iam_role_policy_attachment.admin-deploy[0]
+}
+moved {
+  from = aws_iam_role_policy_attachment.admin-ssm
+  to   = aws_iam_role_policy_attachment.admin-ssm[0]
+}
+
 resource "aws_iam_role" "admin" {
   count                = local.byo_admin_role ? 0 : 1
   name                 = substr("${var.role_name_prefix}project-n-admin-${random_id.random_suffix.hex}", 0, 64)
