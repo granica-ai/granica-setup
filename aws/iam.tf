@@ -9,6 +9,12 @@ locals {
   # opted in via permission_boundary_on_admin_role.
   admin_permissions_boundary = var.permission_boundary_on_admin_role && var.permission_boundary_arn != "" ? var.permission_boundary_arn : null
 
+  # BYO: when a custom admin role ARN is supplied, the admin (deployer) role and
+  # everything that defines it — instance profile, policies, attachments — are not
+  # created. The customer-supplied role is expected to already carry equivalent
+  # permissions, and the admin server EC2 instance uses custom_admin_instance_profile_name.
+  byo_admin_role = var.custom_admin_role_arn != ""
+
   # When this deployment uses a custom IAM role/policy prefix or path (matching
   # krypton's role_name_prefix / role_path / policy_name_prefix / policy_path), the
   # deployer must also be allowed to manage IAM resources in that namespace. Derived
@@ -29,6 +35,7 @@ locals {
 }
 
 resource "aws_iam_role" "admin" {
+  count                = local.byo_admin_role ? 0 : 1
   name                 = substr("${var.role_name_prefix}project-n-admin-${random_id.random_suffix.hex}", 0, 64)
   path                 = var.role_path
   permissions_boundary = local.admin_permissions_boundary
@@ -49,19 +56,22 @@ EOF
 }
 
 resource "aws_iam_instance_profile" "admin" {
-  name = aws_iam_role.admin.name
-  path = var.role_path
-  role = aws_iam_role.admin.name
+  count = local.byo_admin_role ? 0 : 1
+  name  = aws_iam_role.admin[0].name
+  path  = var.role_path
+  role  = aws_iam_role.admin[0].name
 }
 
 resource "aws_iam_policy" "deploy" {
+  count = local.byo_admin_role ? 0 : 1
+
   name   = "${var.policy_name_prefix}project-n-admin-deploy-${random_id.random_suffix.hex}"
   path   = var.policy_path
   policy = data.aws_iam_policy_document.deploy.json
 }
 
 resource "aws_iam_policy" "vpc" {
-  count = var.manage_vpc && length(var.existing_vpc_id) == 0 ? 1 : 0
+  count = !local.byo_admin_role && var.manage_vpc && length(var.existing_vpc_id) == 0 ? 1 : 0
 
   name   = "${var.policy_name_prefix}project-n-admin-vpc-permissions-${random_id.random_suffix.hex}"
   path   = var.policy_path
@@ -69,7 +79,7 @@ resource "aws_iam_policy" "vpc" {
 }
 
 resource "aws_iam_policy" "emr" {
-  count = var.deploy_emr ? 1 : 0
+  count = !local.byo_admin_role && var.deploy_emr ? 1 : 0
 
   name   = "${var.policy_name_prefix}project-n-admin-emr-permissions-${random_id.random_suffix.hex}"
   path   = var.policy_path
@@ -77,7 +87,7 @@ resource "aws_iam_policy" "emr" {
 }
 
 resource "aws_iam_policy" "efs" {
-  count = var.airflow_enabled ? 1 : 0
+  count = !local.byo_admin_role && var.airflow_enabled ? 1 : 0
 
   name   = "${var.policy_name_prefix}project-n-admin-efs-permissions-${random_id.random_suffix.hex}"
   path   = var.policy_path
@@ -85,34 +95,38 @@ resource "aws_iam_policy" "efs" {
 }
 
 resource "aws_iam_role_policy_attachment" "admin-deploy" {
-  policy_arn = aws_iam_policy.deploy.arn
-  role       = aws_iam_role.admin.id
+  count = local.byo_admin_role ? 0 : 1
+
+  policy_arn = aws_iam_policy.deploy[0].arn
+  role       = aws_iam_role.admin[0].id
 }
 
 resource "aws_iam_role_policy_attachment" "admin-vpc" {
-  count = var.manage_vpc && length(var.existing_vpc_id) == 0 ? 1 : 0
+  count = !local.byo_admin_role && var.manage_vpc && length(var.existing_vpc_id) == 0 ? 1 : 0
 
   policy_arn = aws_iam_policy.vpc[0].arn
-  role       = aws_iam_role.admin.name
+  role       = aws_iam_role.admin[0].name
 }
 
 resource "aws_iam_role_policy_attachment" "admin-emr" {
-  count = var.deploy_emr ? 1 : 0
+  count = !local.byo_admin_role && var.deploy_emr ? 1 : 0
 
   policy_arn = aws_iam_policy.emr[0].arn
-  role       = aws_iam_role.admin.name
+  role       = aws_iam_role.admin[0].name
 }
 
 resource "aws_iam_role_policy_attachment" "admin-efs" {
-  count = var.airflow_enabled ? 1 : 0
+  count = !local.byo_admin_role && var.airflow_enabled ? 1 : 0
 
   policy_arn = aws_iam_policy.efs[0].arn
-  role       = aws_iam_role.admin.name
+  role       = aws_iam_role.admin[0].name
 }
 
 resource "aws_iam_role_policy_attachment" "admin-ssm" {
+  count = local.byo_admin_role ? 0 : 1
+
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
-  role       = aws_iam_role.admin.name
+  role       = aws_iam_role.admin[0].name
 }
 
 data "aws_iam_policy_document" "deploy" {

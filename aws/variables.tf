@@ -144,3 +144,20 @@ variable "permission_boundary_on_admin_role" {
     write actions; set this false if the boundary would otherwise block them.
   EOT
 }
+
+# BYO admin role. When set, the admin (deployer) role and everything that defines
+# it — instance profile, deploy/vpc/emr/efs policies, attachments — are not created.
+# The customer pre-creates a role with equivalent permissions (e.g. under a
+# restrictive permission boundary that blocks role creation), and the admin server
+# EC2 instance uses custom_admin_instance_profile_name.
+variable "custom_admin_role_arn" {
+  type        = string
+  default     = ""
+  description = "If set, use this pre-existing IAM role for the admin (deployer) server instead of creating one. Skips the admin role, its instance profile, policies, and attachments. Requires custom_admin_instance_profile_name."
+}
+
+variable "custom_admin_instance_profile_name" {
+  type        = string
+  default     = ""
+  description = "Name of a pre-existing instance profile (wrapping custom_admin_role_arn) attached to the admin server EC2 instance. Required when custom_admin_role_arn is set."
+}
