@@ -204,7 +204,7 @@ resource "aws_instance" "admin_server" {
   instance_type = "t2.small"
   subnet_id     = local.target_subnet_id
 
-  iam_instance_profile = aws_iam_instance_profile.admin.name
+  iam_instance_profile = local.byo_admin_role ? var.custom_admin_instance_profile_name : aws_iam_instance_profile.admin[0].name
 
   vpc_security_group_ids = [aws_security_group.admin_server.id]
 
