@@ -159,7 +159,7 @@ resource "aws_security_group" "admin_server" {
     from_port   = 0
     to_port     = 0
     protocol    = "-1"
-    cidr_blocks = ["0.0.0.0/0"] // TODO: lock this down to the VPC CIDR
+    cidr_blocks = [local.vpc_cidr_block]
   }
 
 
