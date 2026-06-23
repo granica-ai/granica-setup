@@ -215,12 +215,21 @@ resource "aws_instance" "admin_server" {
 
 echo "Enter Granica user-data script"
 
-echo "Checking if Google DNS is reachable..."
-until ping -c 1 8.8.8.8; do
-    echo "Waiting for 8.8.8.8 to become reachable..."
-    sleep 1
+# Wait for outbound HTTPS egress before continuing. ICMP/ping may be blocked by
+# the environment; only HTTPS egress is required. Bounded so it cannot spin forever.
+echo "Checking for outbound HTTPS connectivity..."
+connectivity_url="https://s3.amazonaws.com"
+max_wait=300
+waited=0
+until curl --silent --show-error --max-time 10 --output /dev/null "$connectivity_url"; do
+    if [ $waited -ge $max_wait ]; then
+        echo "WARNING: No HTTPS egress to $connectivity_url after $max_wait seconds; proceeding anyway."
+        break
+    fi
+    echo "Waiting for HTTPS egress to become available... ($waited/$max_wait seconds)"
+    sleep 5
+    waited=$((waited + 5))
 done
-echo "8.8.8.8 is reachable!"
 
 while [ -f /var/run/yum.pid ] || pgrep -x yum > /dev/null; do
   echo "Waiting for other yum operations to complete..."
