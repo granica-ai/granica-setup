@@ -231,9 +231,19 @@ until curl --silent --show-error --max-time 10 --output /dev/null "$connectivity
     waited=$((waited + 5))
 done
 
+# Wait for any in-progress yum operation to finish. Bounded so a hung yum or a
+# stale /var/run/yum.pid cannot make this spin forever; after the cap we warn and
+# proceed (the install retry loop below will surface a clear error if yum is wedged).
+yum_max_wait=600
+yum_waited=0
 while [ -f /var/run/yum.pid ] || pgrep -x yum > /dev/null; do
-  echo "Waiting for other yum operations to complete..."
+  if [ $yum_waited -ge $yum_max_wait ]; then
+    echo "WARNING: yum still busy after $yum_max_wait seconds; proceeding anyway."
+    break
+  fi
+  echo "Waiting for other yum operations to complete... ($yum_waited/$yum_max_wait seconds)"
   sleep 5  # waits 5 seconds before checking again
+  yum_waited=$((yum_waited + 5))
 done
 
 # Install pip for root and ec2-user
