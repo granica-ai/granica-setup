@@ -19,6 +19,16 @@ variable "deploy_emr" {
   default = false
 }
 
+# When true, the admin/deployer role is scoped for the SERVERLESS (Fargate CP + EMR Serverless)
+# deployment model: it drops the EKS/Karpenter permissions (EKS clusters, autoscaling groups, the
+# Karpenter SQS/EventBridge interruption plumbing) and the classic-EMR + EFS policies, none of which
+# the serverless path uses. The serverless-specific perms (ECS/ELB/EMR-Serverless/RDS/SecretsManager)
+# are self-elevated by the krypton `serverless` module at deploy time, not granted here.
+variable "serverless" {
+  type    = bool
+  default = false
+}
+
 variable "airflow_enabled" {
   type    = bool
   default = false

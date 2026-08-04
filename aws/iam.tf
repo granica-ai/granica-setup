@@ -105,7 +105,7 @@ resource "aws_iam_policy" "vpc" {
 }
 
 resource "aws_iam_policy" "emr" {
-  count = !local.byo_admin_role && var.deploy_emr ? 1 : 0
+  count = !local.byo_admin_role && var.deploy_emr && !var.serverless ? 1 : 0
 
   name   = "${var.policy_name_prefix}project-n-admin-emr-permissions-${random_id.random_suffix.hex}"
   path   = var.policy_path
@@ -113,7 +113,7 @@ resource "aws_iam_policy" "emr" {
 }
 
 resource "aws_iam_policy" "efs" {
-  count = !local.byo_admin_role && var.airflow_enabled ? 1 : 0
+  count = !local.byo_admin_role && var.airflow_enabled && !var.serverless ? 1 : 0
 
   name   = "${var.policy_name_prefix}project-n-admin-efs-permissions-${random_id.random_suffix.hex}"
   path   = var.policy_path
@@ -135,14 +135,14 @@ resource "aws_iam_role_policy_attachment" "admin-vpc" {
 }
 
 resource "aws_iam_role_policy_attachment" "admin-emr" {
-  count = !local.byo_admin_role && var.deploy_emr ? 1 : 0
+  count = !local.byo_admin_role && var.deploy_emr && !var.serverless ? 1 : 0
 
   policy_arn = aws_iam_policy.emr[0].arn
   role       = aws_iam_role.admin[0].name
 }
 
 resource "aws_iam_role_policy_attachment" "admin-efs" {
-  count = !local.byo_admin_role && var.airflow_enabled ? 1 : 0
+  count = !local.byo_admin_role && var.airflow_enabled && !var.serverless ? 1 : 0
 
   policy_arn = aws_iam_policy.efs[0].arn
   role       = aws_iam_role.admin[0].name
@@ -159,7 +159,20 @@ data "aws_iam_policy_document" "deploy" {
   statement {
     sid    = "UnrestrictedResourcePermissions"
     effect = "Allow"
-    actions = [
+    # The second list is the k8s deploy path only — EKS clusters, node autoscaling + launch
+    # templates/instances, the ingress ALB's ACM cert, and the CMK for EKS/EBS envelope encryption.
+    # Serverless (Fargate CP + EMR Serverless) creates none of these — RDS/S3/secrets ride AWS-managed
+    # encryption and the console ALB is HTTP behind the VPN — so var.serverless drops the whole set.
+    actions = concat([
+      "ec2:CreateSecurityGroup",
+      "ec2:AuthorizeSecurityGroupEgress",
+      "ec2:RevokeSecurityGroupEgress",
+      "ec2:AuthorizeSecurityGroupIngress",
+      "ec2:RevokeSecurityGroupIngress",
+      "ec2:CreateTags",
+      "ec2:DeleteTags",
+      "ec2:Describe*",
+      ], var.serverless ? [] : [
       "acm:DescribeCertificate",
       "acm:ListTagsForCertificate",
       "acm:RequestCertificate",
@@ -170,14 +183,6 @@ data "aws_iam_policy_document" "deploy" {
       "ec2:CreateLaunchTemplate",
       "ec2:CreateLaunchTemplateVersion",
       "ec2:DeleteLaunchTemplate",
-      "ec2:CreateSecurityGroup",
-      "ec2:AuthorizeSecurityGroupEgress",
-      "ec2:RevokeSecurityGroupEgress",
-      "ec2:AuthorizeSecurityGroupIngress",
-      "ec2:RevokeSecurityGroupIngress",
-      "ec2:CreateTags",
-      "ec2:DeleteTags",
-      "ec2:Describe*",
       "ec2:GetLaunchTemplateData",
       "ec2:RunInstances",
       "ec2:TerminateInstances",
@@ -194,7 +199,7 @@ data "aws_iam_policy_document" "deploy" {
       "kms:TagResource",
       "kms:UntagResource",
       "kms:ScheduleKeyDeletion"
-    ]
+    ])
     resources = ["*"]
   }
 
@@ -266,21 +271,24 @@ data "aws_iam_policy_document" "deploy" {
     ], local.derived_iam_resource_arns)
   }
 
-  statement {
-    sid    = "Autoscaling"
-    effect = "Allow"
-    actions = [
-      "autoscaling:AttachInstances",
-      "autoscaling:CreateOrUpdateTags",
-      "autoscaling:CreateAutoScalingGroup",
-      "autoscaling:DeleteAutoScalingGroup",
-      "autoscaling:SetDesiredCapacity",
-      "autoscaling:SuspendProcesses",
-      "autoscaling:UpdateAutoScalingGroup"
-    ]
-    resources = [
-      "arn:aws:autoscaling:*:*:autoScalingGroup:*:autoScalingGroupName/project-n-*"
-    ]
+  dynamic "statement" {
+    for_each = var.serverless ? [] : [1]
+    content {
+      sid    = "Autoscaling"
+      effect = "Allow"
+      actions = [
+        "autoscaling:AttachInstances",
+        "autoscaling:CreateOrUpdateTags",
+        "autoscaling:CreateAutoScalingGroup",
+        "autoscaling:DeleteAutoScalingGroup",
+        "autoscaling:SetDesiredCapacity",
+        "autoscaling:SuspendProcesses",
+        "autoscaling:UpdateAutoScalingGroup"
+      ]
+      resources = [
+        "arn:aws:autoscaling:*:*:autoScalingGroup:*:autoScalingGroupName/project-n-*"
+      ]
+    }
   }
 
   statement {
@@ -303,88 +311,104 @@ data "aws_iam_policy_document" "deploy" {
     resources = ["*"]
   }
 
-  statement {
-    sid    = "EKS"
-    effect = "Allow"
-    actions = [
-      "eks:DescribeUpdate",
-      "eks:DescribeCluster",
-      "eks:UpdateClusterConfig",
-      "eks:UpdateClusterVersion",
-      "eks:AssociateEncryptionConfig",
-      "eks:TagResource",
-      "eks:UntagResource"
-    ]
-    resources = [
-      "arn:aws:eks:*:*:cluster/project-n-*"
-    ]
+  # --- EKS / Karpenter (k8s deploy path only; gated off for serverless) --------------------------
+  dynamic "statement" {
+    for_each = var.serverless ? [] : [1]
+    content {
+      sid    = "EKS"
+      effect = "Allow"
+      actions = [
+        "eks:DescribeUpdate",
+        "eks:DescribeCluster",
+        "eks:UpdateClusterConfig",
+        "eks:UpdateClusterVersion",
+        "eks:AssociateEncryptionConfig",
+        "eks:TagResource",
+        "eks:UntagResource"
+      ]
+      resources = [
+        "arn:aws:eks:*:*:cluster/project-n-*"
+      ]
+    }
   }
 
-  statement {
-    sid    = "EKSAddons"
-    effect = "Allow"
-    actions = [
-      "eks:CreateAddon",
-      "eks:DeleteAddon",
-      "eks:ListAddons",
-      "eks:ListTagsForResource",
-      "eks:ListUpdates",
-      "eks:UpdateAddon",
-      "eks:TagResource",
-      "eks:UntagResource"
-    ]
-    resources = [
-      "arn:aws:eks:*:*:addon/project-n-*/*/*",
-      "arn:aws:eks:*:*:cluster/project-n-*"
-    ]
+  dynamic "statement" {
+    for_each = var.serverless ? [] : [1]
+    content {
+      sid    = "EKSAddons"
+      effect = "Allow"
+      actions = [
+        "eks:CreateAddon",
+        "eks:DeleteAddon",
+        "eks:ListAddons",
+        "eks:ListTagsForResource",
+        "eks:ListUpdates",
+        "eks:UpdateAddon",
+        "eks:TagResource",
+        "eks:UntagResource"
+      ]
+      resources = [
+        "arn:aws:eks:*:*:addon/project-n-*/*/*",
+        "arn:aws:eks:*:*:cluster/project-n-*"
+      ]
+    }
   }
 
-  statement {
-    sid       = "EKSDescribe"
-    effect    = "Allow"
-    actions   = ["eks:Describe*"]
-    resources = ["*"]
+  dynamic "statement" {
+    for_each = var.serverless ? [] : [1]
+    content {
+      sid       = "EKSDescribe"
+      effect    = "Allow"
+      actions   = ["eks:Describe*"]
+      resources = ["*"]
+    }
   }
 
-  statement {
-    sid    = "SQS"
-    effect = "Allow"
-    actions = [
-      "sqs:AddPermission",
-      "sqs:CreateQueue",
-      "sqs:DeleteQueue",
-      "sqs:GetQueueAttributes",
-      "sqs:GetQueueUrl",
-      "sqs:ListQueues",
-      "sqs:ListQueueTags",
-      "sqs:SetQueueAttributes",
-      "sqs:TagQueue",
-      "sqs:UntagQueue"
-    ]
-    resources = [
-      "arn:aws:sqs:*:*:project-n-*"
-    ]
+  dynamic "statement" {
+    for_each = var.serverless ? [] : [1]
+    content {
+      sid    = "SQS"
+      effect = "Allow"
+      actions = [
+        "sqs:AddPermission",
+        "sqs:CreateQueue",
+        "sqs:DeleteQueue",
+        "sqs:GetQueueAttributes",
+        "sqs:GetQueueUrl",
+        "sqs:ListQueues",
+        "sqs:ListQueueTags",
+        "sqs:SetQueueAttributes",
+        "sqs:TagQueue",
+        "sqs:UntagQueue"
+      ]
+      resources = [
+        "arn:aws:sqs:*:*:project-n-*"
+      ]
+    }
   }
 
   # Required by Karpenter: manages EventBridge rules for spot interruption and
   # EC2 rebalance notifications routed to the Karpenter SQS interruption queue.
-  statement {
-    sid    = "EventBridge"
-    effect = "Allow"
-    actions = [
-      "events:DeleteRule",
-      "events:DescribeRule",
-      "events:ListTagsForResource",
-      "events:ListTargetsByRule",
-      "events:PutRule",
-      "events:PutTargets",
-      "events:RemoveTargets",
-      "events:TagResource",
-      "events:UntagResource",
-    ]
-    resources = [
-      "arn:aws:events:*:*:rule/project-n-*"
-    ]
+  dynamic "statement" {
+    for_each = var.serverless ? [] : [1]
+    content {
+      sid    = "EventBridge"
+      effect = "Allow"
+      actions = [
+        "events:DeleteRule",
+        "events:DescribeRule",
+        "events:ListTagsForResource",
+        "events:ListTargetsByRule",
+        "events:PutRule",
+        "events:PutTargets",
+        "events:RemoveTargets",
+        "events:TagResource",
+        "events:UntagResource",
+      ]
+      resources = [
+        "arn:aws:events:*:*:rule/project-n-*"
+      ]
+    }
   }
 
   statement {
