@@ -22,7 +22,10 @@ check "existing_vnet_subnets" {
 locals {
   use_existing_vnet = length(var.existing_vnet_id) > 0
   vnet_id           = local.use_existing_vnet ? var.existing_vnet_id : azurerm_virtual_network.main[0].id
-  admin_subnet_id   = local.use_existing_vnet ? var.existing_subnet_id : azurerm_subnet.admin[0].id
+  # The krypton azure infrastructure requires vnet_name (not just vnet_id). For an
+  # existing VNet, derive it from the last segment of the resource ID.
+  vnet_name       = local.use_existing_vnet ? element(split("/", var.existing_vnet_id), length(split("/", var.existing_vnet_id)) - 1) : azurerm_virtual_network.main[0].name
+  admin_subnet_id = local.use_existing_vnet ? var.existing_subnet_id : azurerm_subnet.admin[0].id
 }
 
 resource "azurerm_virtual_network" "main" {

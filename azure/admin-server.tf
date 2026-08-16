@@ -67,11 +67,14 @@ resource "azurerm_linux_virtual_machine" "admin" {
     disk_size_gb         = 64
   }
 
-  # Azure Linux 2 (RHEL-based, similar to Amazon Linux 2023)
+  # RHEL 9 (RHEL-family, matching the aws/gcp admin servers) so the Granica RPM
+  # installs natively via yum — its %post pulls the prebuilt rhel9 python +
+  # terraform + helm + CLI. Avoids the Ubuntu/alien path that broke the CLI
+  # bootstrap (RPM %post assumes a RHEL family + numeric scriptlet args).
   source_image_reference {
-    publisher = "Canonical"
-    offer     = "ubuntu-24_04-lts"
-    sku       = "server"
+    publisher = "RedHat"
+    offer     = "RHEL"
+    sku       = "9-lvm-gen2"
     version   = "latest"
   }
 
@@ -83,65 +86,30 @@ exec 2>&1
 
 echo "=== Granica admin server setup started ==="
 
-# Wait for network (use curl instead of ping — Azure NSGs may block ICMP)
+# Wait for outbound HTTPS (Azure NSGs may block ICMP)
 echo "Checking network connectivity..."
-until curl -s --connect-timeout 3 https://azure.microsoft.com > /dev/null 2>&1; do
+until curl -s --connect-timeout 3 https://packages.microsoft.com > /dev/null 2>&1; do
   echo "Waiting for network..."
-  sleep 2
+  sleep 3
 done
 echo "Network is reachable"
 
-# apt on a fresh Ubuntu image races with cloud-init's own package phase +
-# unattended-upgrades for the dpkg lock, which previously left az-cli and
-# terraform uninstalled. Let apt itself wait for the lock (DPkg::Lock::Timeout)
-# instead of failing, run non-interactively, and still block up front until the
-# initial background apt run releases the lock.
-export DEBIAN_FRONTEND=noninteractive
-APT_OPTS="-y -o DPkg::Lock::Timeout=600"
-for i in $(seq 1 60); do
-  fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || break
-  echo "Waiting for apt lock... ($i)"
-  sleep 10
-done
+# Base dependencies (RHEL/dnf). terraform, helm, the prebuilt rhel9 python, and
+# the projectn CLI are all installed by the Granica RPM %post below (identical to
+# the aws/gcp RHEL admin servers), so the only extra we add here is az-cli.
+yum -y update || true
+yum install -y jq git curl wget unzip tar make gcc ca-certificates || true
+update-ca-trust 2>/dev/null || true
 
-# Install dependencies
-echo "Installing dependencies..."
-apt-get update $APT_OPTS
-apt-get install $APT_OPTS \
-  jq git curl wget unzip tar make gcc \
-  python3 python3-pip python3-venv \
-  openssl libssl-dev libffi-dev \
-  libsqlite3-dev zlib1g-dev \
-  ca-certificates gnupg lsb-release \
-  cron
-
-# Install Azure CLI (the vendor script runs apt internally; retry so a transient
-# lock/network hiccup doesn't leave az missing).
+# Azure CLI (Microsoft RHEL repo)
 echo "Installing Azure CLI..."
+rpm --import https://packages.microsoft.com/keys/microsoft.asc 2>/dev/null || true
+dnf install -y https://packages.microsoft.com/config/rhel/9/packages-microsoft-prod.rpm 2>/dev/null || true
 for i in 1 2 3; do
-  curl -sL https://aka.ms/InstallAzureCLIDeb | bash && command -v az >/dev/null 2>&1 && break
+  dnf install -y azure-cli && command -v az >/dev/null 2>&1 && break
   echo "Azure CLI install attempt $i failed; retrying in 15s..."
   sleep 15
 done
-
-# Install Terraform
-echo "Installing Terraform..."
-wget -qO- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
-echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
-  > /etc/apt/sources.list.d/hashicorp.list
-apt-get update $APT_OPTS && apt-get install $APT_OPTS terraform
-
-# Install kubectl
-echo "Installing kubectl..."
-mkdir -p /etc/apt/keyrings
-curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
-echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /" \
-  > /etc/apt/sources.list.d/kubernetes.list
-apt-get update $APT_OPTS && apt-get install $APT_OPTS kubectl
-
-# Install Helm
-echo "Installing Helm..."
-curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 
 # Create granica user home directory and setup
 echo "Setting up ${var.admin_username} user..."
@@ -154,6 +122,7 @@ subscription_id    = "${var.subscription_id}"
 region             = "${var.region}"
 resource_group     = "${azurerm_resource_group.main.name}"
 vnet_id            = "${local.vnet_id}"
+vnet_name          = "${local.vnet_name}"
 admin_subnet_id    = "${local.admin_subnet_id}"
 %{if !local.use_existing_vnet~}
 aks_system_subnet_id    = "${azurerm_subnet.aks_system[0].id}"
@@ -195,21 +164,16 @@ attempt_num=1
 success=false
 while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
   echo "Attempting Granica package install (attempt $attempt_num/$max_attempts)..."
-  wget --directory-prefix=/tmp ${var.package_url}
-  rpm_file=$(basename ${var.package_url})
-  # Convert RPM to deb for Ubuntu (using alien), or install directly if deb
-  if [[ "$rpm_file" == *.rpm ]]; then
-    apt-get install -y alien
-    alien -d "/tmp/$rpm_file" && dpkg -i /tmp/*.deb
-  elif [[ "$rpm_file" == *.deb ]]; then
-    dpkg -i "/tmp/$rpm_file"
-  fi
-  if [ $? -eq 0 ]; then
+  # Native install (RHEL): the RPM %post pulls the prebuilt rhel9 python +
+  # terraform + helm + the projectn CLI. curl to a local file first (handles
+  # signed URLs with query strings that yum's URL fetcher chokes on), then
+  # yum-install the local rpm.
+  if curl -fsSL "${var.package_url}" -o /tmp/granica.rpm && yum install -y /tmp/granica.rpm; then
     echo "Granica package install succeeded"
     success=true
   else
-    echo "Attempt $attempt_num failed. Retrying in 5 seconds..."
-    sleep 5
+    echo "Attempt $attempt_num failed. Retrying in 15 seconds..."
+    sleep 15
     ((attempt_num++))
   fi
 done
@@ -218,9 +182,9 @@ if [ "$success" = false ]; then
   echo "ERROR: Failed to install Granica package after $max_attempts attempts"
 fi
 
-# Ensure cron is enabled
-systemctl enable cron
-systemctl start cron
+# Ensure cron is enabled (RHEL uses crond)
+systemctl enable crond 2>/dev/null || true
+systemctl start crond 2>/dev/null || true
 
 echo "=== Granica admin server setup complete ==="
 EOF
