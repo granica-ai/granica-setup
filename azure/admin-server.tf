@@ -91,16 +91,23 @@ until curl -s --connect-timeout 3 https://azure.microsoft.com > /dev/null 2>&1; 
 done
 echo "Network is reachable"
 
-# Wait for apt lock to be released (cloud-init may be running)
-while fuser /var/lib/dpkg/lock-frontend &>/dev/null 2>&1; do
-  echo "Waiting for apt lock..."
-  sleep 5
+# apt on a fresh Ubuntu image races with cloud-init's own package phase +
+# unattended-upgrades for the dpkg lock, which previously left az-cli and
+# terraform uninstalled. Let apt itself wait for the lock (DPkg::Lock::Timeout)
+# instead of failing, run non-interactively, and still block up front until the
+# initial background apt run releases the lock.
+export DEBIAN_FRONTEND=noninteractive
+APT_OPTS="-y -o DPkg::Lock::Timeout=600"
+for i in $(seq 1 60); do
+  fuser /var/lib/dpkg/lock-frontend >/dev/null 2>&1 || break
+  echo "Waiting for apt lock... ($i)"
+  sleep 10
 done
 
 # Install dependencies
 echo "Installing dependencies..."
-apt-get update -y
-apt-get install -y \
+apt-get update $APT_OPTS
+apt-get install $APT_OPTS \
   jq git curl wget unzip tar make gcc \
   python3 python3-pip python3-venv \
   openssl libssl-dev libffi-dev \
@@ -108,23 +115,29 @@ apt-get install -y \
   ca-certificates gnupg lsb-release \
   cron
 
-# Install Azure CLI
+# Install Azure CLI (the vendor script runs apt internally; retry so a transient
+# lock/network hiccup doesn't leave az missing).
 echo "Installing Azure CLI..."
-curl -sL https://aka.ms/InstallAzureCLIDeb | bash
+for i in 1 2 3; do
+  curl -sL https://aka.ms/InstallAzureCLIDeb | bash && command -v az >/dev/null 2>&1 && break
+  echo "Azure CLI install attempt $i failed; retrying in 15s..."
+  sleep 15
+done
 
 # Install Terraform
 echo "Installing Terraform..."
 wget -qO- https://apt.releases.hashicorp.com/gpg | gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
   > /etc/apt/sources.list.d/hashicorp.list
-apt-get update -y && apt-get install -y terraform
+apt-get update $APT_OPTS && apt-get install $APT_OPTS terraform
 
 # Install kubectl
 echo "Installing kubectl..."
+mkdir -p /etc/apt/keyrings
 curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key | gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg
 echo "deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /" \
   > /etc/apt/sources.list.d/kubernetes.list
-apt-get update -y && apt-get install -y kubectl
+apt-get update $APT_OPTS && apt-get install $APT_OPTS kubectl
 
 # Install Helm
 echo "Installing Helm..."
