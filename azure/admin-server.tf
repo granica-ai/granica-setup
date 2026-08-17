@@ -97,7 +97,11 @@ echo "Network is reachable"
 # Base dependencies (RHEL/dnf). terraform, helm, the prebuilt rhel9 python, and
 # the projectn CLI are all installed by the Granica RPM %post below (identical to
 # the aws/gcp RHEL admin servers), so the only extra we add here is az-cli.
-yum -y update || true
+#
+# NOTE: deliberately NO `yum -y update` here. A full package update holds the
+# yum/rpm lock for minutes at first boot and races the AADSSHLoginForLinux VM
+# extension's own `yum makecache` (6 quick retries), causing the extension to
+# fail with a terminal error. Install only the specific packages we need.
 yum install -y jq git curl wget unzip tar make gcc ca-certificates || true
 update-ca-trust 2>/dev/null || true
 
