@@ -76,6 +76,18 @@ resource "azurerm_subnet" "private_endpoints" {
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main[0].name
   address_prefixes     = [cidrsubnet(var.vpc_cidr, 8, 16)] # 10.47.16.0/24
+
+  # The PostgreSQL Flexible Server (deployed by krypton) uses this subnet as its
+  # delegated_subnet_id for VNet integration, which requires the subnet be
+  # delegated to Microsoft.DBforPostgreSQL/flexibleServers. Only Postgres uses
+  # this subnet, so the delegation is safe here.
+  delegation {
+    name = "postgres-flexible-server"
+    service_delegation {
+      name    = "Microsoft.DBforPostgreSQL/flexibleServers"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
+    }
+  }
 }
 
 # Bastion subnet (must be named AzureBastionSubnet)
