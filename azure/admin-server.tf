@@ -86,6 +86,18 @@ exec 2>&1
 
 echo "=== Granica admin server setup started ==="
 
+# RHEL 9.8 PAYG images auto-enable the subscription-manager product-id dnf plugin,
+# whose post-transaction hook fails ("Installed products updated. Error: Transaction
+# failed") on an unregistered system. That makes the AADSSHLoginForLinux VM
+# extension's `yum install aadsshlogin-selinux` exit non-zero (terminal extension
+# failure) even though the package itself installs cleanly. Disable it as early as
+# custom_data runs. NOTE: custom_data races the extension handler; if the extension
+# still loses the race and fails, recover with:
+#   az vm extension delete -g <rg> --vm-name <vm> -n AADSSHLoginForLinux
+#   terraform apply   # retries the ext; package already installed -> "Nothing to do"
+subscription-manager config --rhsm.auto_enable_yum_plugins=0 --rhsm.manage_repos=0 2>/dev/null || true
+sed -i 's/^enabled=1/enabled=0/' /etc/dnf/plugins/product-id.conf /etc/dnf/plugins/subscription-manager.conf 2>/dev/null || true
+
 # Wait for outbound HTTPS (Azure NSGs may block ICMP)
 echo "Checking network connectivity..."
 until curl -s --connect-timeout 3 https://packages.microsoft.com > /dev/null 2>&1; do
