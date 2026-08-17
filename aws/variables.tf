@@ -46,6 +46,54 @@ variable "server_name" {
   default     = "dev"
 }
 
+# ── CP Teleport SSH-node enrollment (hybrid) ─────────────────────────────────
+# When enabled, the admin-server joins the customer's Control-Plane Teleport
+# cluster as an SSH node, so CP operators can `tsh ssh` into it via the CP proxy
+# instead of needing direct SSM/EICE into this account. Off by default → SaaS /
+# non-hybrid admin-servers are unchanged. The three CP values are produced on the
+# CP side: proxy_addr + ca_pin (`terraform output` on the CP) and a node-role
+# join token (`tctl tokens add --type=node` on the CP).
+variable "cp_teleport_enabled" {
+  description = "Enroll the admin-server as a Teleport SSH node in the CP Teleport cluster."
+  type        = bool
+  default     = false
+}
+
+variable "cp_proxy_addr" {
+  description = "CP Teleport proxy address host:443 (e.g. cp.<customer>.aws.granica.ai:443). Required when cp_teleport_enabled."
+  type        = string
+  default     = ""
+}
+
+variable "cp_ca_pin" {
+  description = "CP Teleport cluster CA pin (sha256:...). Required when cp_teleport_enabled."
+  type        = string
+  default     = ""
+}
+
+variable "cp_node_token" {
+  description = "Teleport node-role join token minted on the CP. Required when cp_teleport_enabled."
+  type        = string
+  default     = ""
+  sensitive   = true
+}
+
+variable "teleport_version" {
+  description = "Teleport version installed on the admin-server node; should match the CP cluster."
+  type        = string
+  default     = "18.7.4"
+}
+
+variable "teleport_edition" {
+  description = "Teleport edition for the node install; must match the CP cluster (oss|enterprise|cloud)."
+  type        = string
+  default     = "oss"
+  validation {
+    condition     = contains(["oss", "enterprise", "cloud"], var.teleport_edition)
+    error_message = "teleport_edition must be one of: oss, enterprise, cloud."
+  }
+}
+
 variable "vpc_cidr" {
   type        = string
   default     = "10.47.0.0/16"

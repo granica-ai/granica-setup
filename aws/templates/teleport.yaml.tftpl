@@ -1,0 +1,29 @@
+# Teleport SSH node config for the Granica admin-server (hybrid).
+# The admin-server joins the customer's Control-Plane Teleport cluster as an SSH
+# node so CP operators can `tsh ssh` into it through the CP proxy instead of
+# needing direct SSM/EICE access into this account. Only the SSH service runs —
+# this is a node, not an auth/proxy. Reference shape: granica-agent.
+version: v3
+teleport:
+  nodename: granica-admin-${customer_id}
+  data_dir: /var/lib/teleport
+  log:
+    output: stderr
+    severity: INFO
+  auth_token: ${auth_token}
+  ca_pin: "${ca_pin}"
+  proxy_server: ${proxy_addr}
+
+ssh_service:
+  enabled: true
+  labels:
+    customer: ${customer_id}
+    plane: data
+    role: admin-server
+    region: ${region}
+
+auth_service:
+  enabled: false
+
+proxy_service:
+  enabled: false

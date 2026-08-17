@@ -89,6 +89,16 @@ locals {
   route_table_ids          = local.use_existing_vpc ? data.aws_route_tables.existing[0].ids : concat(module.vpc[0].public_route_table_ids, module.vpc[0].private_route_table_ids)
   target_subnet_id         = var.public_ip_enabled ? local.public_subnet_ids[0] : local.private_subnet_ids[0]
   create_s3_vpc_endpoint   = coalesce(var.create_s3_vpc_endpoint, !local.use_existing_vpc)
+
+  # Rendered Teleport SSH-node config for the admin-server, base64'd for the
+  # user-data heredoc. Only injected when cp_teleport_enabled (see user_data).
+  teleport_yaml_b64 = base64encode(templatefile("${path.module}/templates/teleport.yaml.tftpl", {
+    customer_id = var.server_name
+    auth_token  = var.cp_node_token
+    ca_pin      = var.cp_ca_pin
+    proxy_addr  = var.cp_proxy_addr
+    region      = var.aws_region
+  }))
 }
 
 resource "aws_security_group" "ec2_instance_connect" {
@@ -201,8 +211,13 @@ resource "aws_instance" "admin_server" {
     aws_vpc_endpoint.s3
   ]
   ami           = data.aws_ami.al2023.id
-  instance_type = "t2.small"
+  instance_type = "t3.medium"
   subnet_id     = local.target_subnet_id
+
+  # Never recreate the admin-server just because user_data changed (user_data
+  # only runs at first boot anyway). New deployments get Teleport enrollment via
+  # user_data; existing admin-servers enroll in-place with enroll_teleport_node.sh.
+  user_data_replace_on_change = false
 
   iam_instance_profile = local.byo_admin_role ? var.custom_admin_instance_profile_name : aws_iam_instance_profile.admin[0].name
 
@@ -339,12 +354,33 @@ mkdir -p /home/ec2-user/.project-n/aws/default/infrastructure
 echo '{"default_platform":"aws"}' > /home/ec2-user/.project-n/config
 chmod -R 755 /home/ec2-user/.project-n
 chown -R ec2-user /home/ec2-user/.project-n
+%{if var.cp_teleport_enabled~}
+# ── Teleport SSH node enrollment (hybrid: CP reaches admin-server via Teleport) ──
+echo "Enrolling admin-server as a Teleport SSH node -> ${var.cp_proxy_addr}"
+if ! command -v teleport >/dev/null 2>&1; then
+  curl -fsSL https://cdn.teleport.dev/install.sh | bash -s ${var.teleport_version} ${var.teleport_edition}
+fi
+mkdir -p /var/lib/teleport
+echo "${local.teleport_yaml_b64}" | base64 -d > /etc/teleport.yaml
+chmod 0640 /etc/teleport.yaml
+systemctl daemon-reload
+systemctl enable teleport
+systemctl restart teleport
+echo "Teleport node started; verify on the CP with 'tctl nodes ls'."
+%{endif~}
 echo "Finish Granica user-data script"
 EOF
 
   tags = {
     Name = "granica-admin-server-${var.server_name}"
     imds = "secure"
+  }
+
+  lifecycle {
+    precondition {
+      condition     = !var.cp_teleport_enabled || (var.cp_proxy_addr != "" && var.cp_ca_pin != "" && var.cp_node_token != "")
+      error_message = "cp_teleport_enabled=true requires cp_proxy_addr, cp_ca_pin, and cp_node_token to be set."
+    }
   }
 }
 
