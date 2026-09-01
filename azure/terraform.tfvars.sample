@@ -1,0 +1,30 @@
+# Azure subscription where the admin server and Granica will be deployed.
+subscription_id = "your-subscription-id"
+
+# Azure region for all resources.
+region = "eastus2"
+
+# URL to the Granica RPM/DEB package.
+package_url = "https://granica.ai/granica.rpm"
+
+# Optional: suffix for the admin server name (defaults to "dev").
+server_name = "dev"
+
+# Optional: VM size for the admin server (defaults to Standard_B2s).
+# vm_size = "Standard_B2s"
+
+# Optional: enable a public IP on the admin server (dev/test only).
+# public_ip_enabled = true
+
+# Bastion is created by default (the private-VM access path). Set false only for
+# dev/test, and use public_ip_enabled instead.
+# bastion_enabled = false
+
+# --- Optional: existing VNet (when empty, a new VNet is created) ---
+# When existing_vnet_id is set you must also pass every subnet the deploy needs,
+# because the module won't create them in existing-VNet mode.
+# existing_vnet_id                     = "/subscriptions/.../virtualNetworks/my-vnet"
+# existing_subnet_id                   = "/subscriptions/.../virtualNetworks/my-vnet/subnets/admin"
+# existing_aks_system_subnet_id        = "/subscriptions/.../virtualNetworks/my-vnet/subnets/aks-system"
+# existing_aks_workload_subnet_id      = "/subscriptions/.../virtualNetworks/my-vnet/subnets/aks-workload"
+# existing_private_endpoints_subnet_id = "/subscriptions/.../virtualNetworks/my-vnet/subnets/private-endpoints"
