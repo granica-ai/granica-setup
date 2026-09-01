@@ -36,12 +36,6 @@ variable "admin_username" {
   default     = "granica"
 }
 
-variable "airflow_enabled" {
-  description = "Enable Airflow-related permissions (Azure Files)"
-  type        = bool
-  default     = false
-}
-
 variable "vpc_cidr" {
   description = "The CIDR block for the VNet (only used when existing_vnet_id is not set)"
   type        = string
@@ -62,16 +56,43 @@ variable "existing_subnet_id" {
   description = "Resource ID of an existing subnet for the admin server. Required when existing_vnet_id is set."
 }
 
+# In existing-VNet mode the module does not create the AKS/private-endpoint
+# subnets, but `granica deploy` still needs them (they go into config.tfvars).
+# The caller must pre-create and pass them, same as existing_subnet_id.
+variable "existing_aks_system_subnet_id" {
+  type        = string
+  default     = ""
+  description = "Resource ID of an existing AKS system/on-demand node subnet. Required when existing_vnet_id is set."
+}
+
+variable "existing_aks_workload_subnet_id" {
+  type        = string
+  default     = ""
+  description = "Resource ID of an existing AKS workload/spot node subnet. Required when existing_vnet_id is set."
+}
+
+variable "existing_private_endpoints_subnet_id" {
+  type        = string
+  default     = ""
+  description = "Resource ID of an existing subnet for private endpoints (DB/Storage). Must be delegated to Microsoft.DBforPostgreSQL/flexibleServers. Required when existing_vnet_id is set."
+}
+
 variable "public_ip_enabled" {
   description = "Assign a public IP to the admin server (dev/test only; use Bastion for production)"
   type        = bool
   default     = false
 }
 
+# Default-on secure access, mirroring aws (always-wired SSM Session Manager) and
+# gcp (always-wired IAP tunnel): the admin server stays private (no public IP,
+# no open SSH) and is reached through the managed tunnel. Azure has no free
+# SSM/IAP twin for an interactive shell (`az vm run-command` is command-only),
+# so Bastion is that tunnel. Only honored on a module-created VNet; in
+# existing-VNet mode the caller brings their own access path.
 variable "bastion_enabled" {
-  description = "Create an Azure Bastion host for secure SSH access to the admin server"
+  description = "Create an Azure Bastion host for secure SSH access to the admin server (default access path, like SSM on aws / IAP on gcp). Ignored when existing_vnet_id is set."
   type        = bool
-  default     = false
+  default     = true
 }
 
 variable "owner_email" {

@@ -14,8 +14,15 @@ resource "azurerm_resource_group" "main" {
 
 check "existing_vnet_subnets" {
   assert {
-    condition     = length(var.existing_vnet_id) == 0 || length(var.existing_subnet_id) > 0
-    error_message = "When existing_vnet_id is set, existing_subnet_id must be provided."
+    # Existing-VNet mode needs every subnet the deploy consumes, not just admin:
+    # the module creates none of them here, so all must be passed in.
+    condition = length(var.existing_vnet_id) == 0 || (
+      length(var.existing_subnet_id) > 0 &&
+      length(var.existing_aks_system_subnet_id) > 0 &&
+      length(var.existing_aks_workload_subnet_id) > 0 &&
+      length(var.existing_private_endpoints_subnet_id) > 0
+    )
+    error_message = "When existing_vnet_id is set, all of existing_subnet_id, existing_aks_system_subnet_id, existing_aks_workload_subnet_id, and existing_private_endpoints_subnet_id must be provided."
   }
 }
 
@@ -24,8 +31,12 @@ locals {
   vnet_id           = local.use_existing_vnet ? var.existing_vnet_id : azurerm_virtual_network.main[0].id
   # The krypton azure infrastructure requires vnet_name (not just vnet_id). For an
   # existing VNet, derive it from the last segment of the resource ID.
-  vnet_name       = local.use_existing_vnet ? element(split("/", var.existing_vnet_id), length(split("/", var.existing_vnet_id)) - 1) : azurerm_virtual_network.main[0].name
-  admin_subnet_id = local.use_existing_vnet ? var.existing_subnet_id : azurerm_subnet.admin[0].id
+  vnet_name = local.use_existing_vnet ? element(split("/", var.existing_vnet_id), length(split("/", var.existing_vnet_id)) - 1) : azurerm_virtual_network.main[0].name
+  # Each subnet: caller-supplied in existing-VNet mode, else the one created here.
+  admin_subnet_id             = local.use_existing_vnet ? var.existing_subnet_id : azurerm_subnet.admin[0].id
+  aks_system_subnet_id        = local.use_existing_vnet ? var.existing_aks_system_subnet_id : azurerm_subnet.aks_system[0].id
+  aks_workload_subnet_id      = local.use_existing_vnet ? var.existing_aks_workload_subnet_id : azurerm_subnet.aks_workload[0].id
+  private_endpoints_subnet_id = local.use_existing_vnet ? var.existing_private_endpoints_subnet_id : azurerm_subnet.private_endpoints[0].id
 }
 
 resource "azurerm_virtual_network" "main" {
@@ -222,7 +233,10 @@ resource "azurerm_subnet_network_security_group_association" "admin" {
 ################################################################################
 
 resource "azurerm_public_ip" "bastion" {
-  count = var.bastion_enabled ? 1 : 0
+  # Bastion (host, IP, subnet) only in module-created-VNet mode; the subnet is
+  # gated the same way, so an unguarded host here would index bastion[0] on a
+  # count=0 subnet. Existing-VNet mode = bring-your-own access.
+  count = var.bastion_enabled && !local.use_existing_vnet ? 1 : 0
 
   name                = "granica-bastion-ip-${var.server_name}"
   location            = var.region
@@ -233,7 +247,7 @@ resource "azurerm_public_ip" "bastion" {
 }
 
 resource "azurerm_bastion_host" "main" {
-  count = var.bastion_enabled ? 1 : 0
+  count = var.bastion_enabled && !local.use_existing_vnet ? 1 : 0
 
   name                = "granica-bastion-${var.server_name}"
   location            = var.region

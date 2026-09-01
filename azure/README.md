@@ -67,12 +67,27 @@ If you are working in Azure Cloud Shell you must be logged in as Owner. If you a
    ```
 
 7. Login to the Admin Server
+
+   By default the admin server has **no public IP** and is reached through
+   **Azure Bastion** — the same model as `aws ssm start-session` on AWS and
+   `gcloud compute ssh --tunnel-through-iap` on GCP (a managed, identity-gated
+   tunnel; the VM stays private). `terraform apply` prints the exact command.
    ```bash
-   az ssh vm --resource-group granica-{server_name}-rg --name granica-admin-server-{server_name}
+   # Default (bastion_enabled = true): tunnel in through Bastion
+   az network bastion ssh \
+     --resource-group granica-{server_name}-rg \
+     --name granica-bastion-{server_name} \
+     --target-resource-id $(terraform output -raw instance_id) \
+     --auth-type AAD
 
    # server_name is what you provided in the terraform.tfvars file
    ```
-   (Use the az ssh command output at the end of the terraform apply to connect to the admin server)
+   If you instead set `public_ip_enabled = true` (dev/test) the server gets a
+   public IP + an SSH rule, and you can connect directly:
+   ```bash
+   az ssh vm --resource-group granica-{server_name}-rg --name granica-admin-server-{server_name}
+   ```
+   (Use the connect command printed at the end of the terraform apply)
    ```bash
    $ sudo su - granica # Use granica user to run granica commands
    # Check if the granica package has finished installation (takes around 10-15 mins)

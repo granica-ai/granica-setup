@@ -98,12 +98,23 @@ echo "=== Granica admin server setup started ==="
 subscription-manager config --rhsm.auto_enable_yum_plugins=0 --rhsm.manage_repos=0 2>/dev/null || true
 sed -i 's/^enabled=1/enabled=0/' /etc/dnf/plugins/product-id.conf /etc/dnf/plugins/subscription-manager.conf 2>/dev/null || true
 
-# Wait for outbound HTTPS (Azure NSGs may block ICMP)
+# Wait for outbound HTTPS (Azure NSGs may block ICMP). Bounded: in existing-VNet
+# mode there may be no NAT/egress at all, so an unbounded wait would hang cloud-init
+# forever. Fail loudly after ~2 min so the failure is visible in the startup log.
 echo "Checking network connectivity..."
-until curl -s --connect-timeout 3 https://packages.microsoft.com > /dev/null 2>&1; do
-  echo "Waiting for network..."
+net_ok=0
+for i in $(seq 1 40); do
+  if curl -s --connect-timeout 3 https://packages.microsoft.com > /dev/null 2>&1; then
+    net_ok=1
+    break
+  fi
+  echo "Waiting for network... (attempt $i/40)"
   sleep 3
 done
+if [ "$net_ok" -ne 1 ]; then
+  echo "ERROR: no outbound HTTPS after ~2 min. Check VNet egress (NAT gateway / route / NSG); in existing-VNet mode the VNet must provide outbound internet access." >&2
+  exit 1
+fi
 echo "Network is reachable"
 
 # Base dependencies (RHEL/dnf). terraform, helm, the prebuilt rhel9 python, and
@@ -140,11 +151,9 @@ resource_group     = "${azurerm_resource_group.main.name}"
 vnet_id            = "${local.vnet_id}"
 vnet_name          = "${local.vnet_name}"
 admin_subnet_id    = "${local.admin_subnet_id}"
-%{if !local.use_existing_vnet~}
-aks_system_subnet_id    = "${azurerm_subnet.aks_system[0].id}"
-aks_workload_subnet_id  = "${azurerm_subnet.aks_workload[0].id}"
-private_endpoints_subnet_id = "${azurerm_subnet.private_endpoints[0].id}"
-%{endif~}
+aks_system_subnet_id    = "${local.aks_system_subnet_id}"
+aks_workload_subnet_id  = "${local.aks_workload_subnet_id}"
+private_endpoints_subnet_id = "${local.private_endpoints_subnet_id}"
 admin_identity_id       = "${azurerm_user_assigned_identity.admin.id}"
 admin_identity_client_id = "${azurerm_user_assigned_identity.admin.client_id}"
 admin_server_name       = "granica-admin-server-${var.server_name}"
