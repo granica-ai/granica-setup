@@ -55,10 +55,6 @@ output "public_ip" {
 
 output "ssh_command" {
   description = "CLI command to connect to the admin server"
-  # Prefer a direct key SSH when a public IP was opted into; otherwise the
-  # default path is the Bastion tunnel (aws SSM / gcp IAP analog); Serial
-  # Console is only the last resort when neither is present (e.g. existing-VNet
-  # mode with no caller-provided access).
   value = var.public_ip_enabled ? join("\n", [
     "terraform output -raw ssh_private_key > admin-key.pem && chmod 600 admin-key.pem",
     "ssh -i admin-key.pem ${var.admin_username}@${azurerm_public_ip.admin[0].ip_address}",

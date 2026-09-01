@@ -56,9 +56,6 @@ variable "existing_subnet_id" {
   description = "Resource ID of an existing subnet for the admin server. Required when existing_vnet_id is set."
 }
 
-# In existing-VNet mode the module does not create the AKS/private-endpoint
-# subnets, but `granica deploy` still needs them (they go into config.tfvars).
-# The caller must pre-create and pass them, same as existing_subnet_id.
 variable "existing_aks_system_subnet_id" {
   type        = string
   default     = ""
@@ -83,14 +80,8 @@ variable "public_ip_enabled" {
   default     = false
 }
 
-# Default-on secure access, mirroring aws (always-wired SSM Session Manager) and
-# gcp (always-wired IAP tunnel): the admin server stays private (no public IP,
-# no open SSH) and is reached through the managed tunnel. Azure has no free
-# SSM/IAP twin for an interactive shell (`az vm run-command` is command-only),
-# so Bastion is that tunnel. Only honored on a module-created VNet; in
-# existing-VNet mode the caller brings their own access path.
 variable "bastion_enabled" {
-  description = "Create an Azure Bastion host for secure SSH access to the admin server (default access path, like SSM on aws / IAP on gcp). Ignored when existing_vnet_id is set."
+  description = "Create an Azure Bastion host for private SSH access to the admin server (the default access path). Ignored when existing_vnet_id is set."
   type        = bool
   default     = true
 }

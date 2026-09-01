@@ -17,9 +17,6 @@ resource "azurerm_user_assigned_identity" "admin" {
 ################################################################################
 # The admin identity needs broad permissions to create infrastructure.
 # These are scoped to the resource group (not subscription-wide).
-# Equivalent to:
-#   AWS: project-n-admin IAM role with deploy/vpc/efs policies
-#   GCP: service account with container.admin, storage.admin, compute.admin, etc.
 ################################################################################
 
 # Contributor: create/manage most resources (AKS, VMs, storage, DB, etc.)

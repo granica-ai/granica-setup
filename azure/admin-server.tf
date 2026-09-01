@@ -2,9 +2,7 @@
 # Admin Server VM
 ################################################################################
 # Azure Linux VM that runs `granica deploy` to create the AKS cluster and
-# all supporting infrastructure. Equivalent to:
-#   AWS: aws_instance (Amazon Linux 2023, t2.small)
-#   GCP: google_compute_instance (CentOS 9, e2-small)
+# all supporting infrastructure.
 ################################################################################
 
 # Public IP for admin server (only if public_ip_enabled — dev/test)
@@ -50,7 +48,7 @@ resource "azurerm_linux_virtual_machine" "admin" {
 
   network_interface_ids = [azurerm_network_interface.admin.id]
 
-  # Managed identity for Azure API access (equivalent to IAM instance profile / GCP SA)
+  # Managed identity for Azure API access
   identity {
     type         = "UserAssigned"
     identity_ids = [azurerm_user_assigned_identity.admin.id]
@@ -67,10 +65,10 @@ resource "azurerm_linux_virtual_machine" "admin" {
     disk_size_gb         = 64
   }
 
-  # RHEL 9 (RHEL-family, matching the aws/gcp admin servers) so the Granica RPM
-  # installs natively via yum — its %post pulls the prebuilt rhel9 python +
-  # terraform + helm + CLI. Avoids the Ubuntu/alien path that broke the CLI
-  # bootstrap (RPM %post assumes a RHEL family + numeric scriptlet args).
+  # RHEL 9 so the Granica RPM installs natively via yum — its %post pulls the
+  # prebuilt rhel9 python + terraform + helm + CLI. Avoids the Ubuntu/alien path
+  # that broke the CLI bootstrap (RPM %post assumes a RHEL family + numeric
+  # scriptlet args).
   source_image_reference {
     publisher = "RedHat"
     offer     = "RHEL"
@@ -98,9 +96,8 @@ echo "=== Granica admin server setup started ==="
 subscription-manager config --rhsm.auto_enable_yum_plugins=0 --rhsm.manage_repos=0 2>/dev/null || true
 sed -i 's/^enabled=1/enabled=0/' /etc/dnf/plugins/product-id.conf /etc/dnf/plugins/subscription-manager.conf 2>/dev/null || true
 
-# Wait for outbound HTTPS (Azure NSGs may block ICMP). Bounded: in existing-VNet
-# mode there may be no NAT/egress at all, so an unbounded wait would hang cloud-init
-# forever. Fail loudly after ~2 min so the failure is visible in the startup log.
+# Wait for outbound HTTPS (Azure NSGs may block ICMP). Bounded so a VNet with no
+# egress fails the bootstrap instead of hanging cloud-init forever.
 echo "Checking network connectivity..."
 net_ok=0
 for i in $(seq 1 40); do
@@ -118,8 +115,8 @@ fi
 echo "Network is reachable"
 
 # Base dependencies (RHEL/dnf). terraform, helm, the prebuilt rhel9 python, and
-# the projectn CLI are all installed by the Granica RPM %post below (identical to
-# the aws/gcp RHEL admin servers), so the only extra we add here is az-cli.
+# the projectn CLI are all installed by the Granica RPM %post below, so the only
+# extra we add here is az-cli.
 #
 # NOTE: deliberately NO `yum -y update` here. A full package update holds the
 # yum/rpm lock for minutes at first boot and races the AADSSHLoginForLinux VM
@@ -168,10 +165,10 @@ echo '{"default_platform":"azure"}' > /home/${var.admin_username}/.project-n/con
 chmod -R 755 /home/${var.admin_username}/.project-n
 chown -R ${var.admin_username}:${var.admin_username} /home/${var.admin_username}/.project-n
 
-# Auto-login with managed identity on every session (equivalent to AWS instance profile / GCP SA auto-auth)
+# Auto-login with managed identity on every session
 echo "Configuring Azure CLI auto-login with managed identity..."
 cat >> /home/${var.admin_username}/.bashrc << 'BASHRC'
-# Auto-login with VM's managed identity (like AWS instance profile / GCP service account)
+# Auto-login with VM's managed identity
 if ! az account show &>/dev/null 2>&1; then
   az login --identity --client-id ${azurerm_user_assigned_identity.admin.client_id} &>/dev/null
   az account set --subscription ${var.subscription_id} &>/dev/null
@@ -226,7 +223,6 @@ EOF
 # AAD SSH Login Extension
 ################################################################################
 # Enables Azure AD-based SSH login — no SSH keys or passwords needed.
-# Equivalent to: AWS SSM Session Manager, GCP IAP tunneling
 # Usage: az ssh vm --resource-group <rg> --name <vm>
 ################################################################################
 

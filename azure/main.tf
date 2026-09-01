@@ -14,8 +14,6 @@ resource "azurerm_resource_group" "main" {
 
 check "existing_vnet_subnets" {
   assert {
-    # Existing-VNet mode needs every subnet the deploy consumes, not just admin:
-    # the module creates none of them here, so all must be passed in.
     condition = length(var.existing_vnet_id) == 0 || (
       length(var.existing_subnet_id) > 0 &&
       length(var.existing_aks_system_subnet_id) > 0 &&
@@ -31,8 +29,7 @@ locals {
   vnet_id           = local.use_existing_vnet ? var.existing_vnet_id : azurerm_virtual_network.main[0].id
   # The krypton azure infrastructure requires vnet_name (not just vnet_id). For an
   # existing VNet, derive it from the last segment of the resource ID.
-  vnet_name = local.use_existing_vnet ? element(split("/", var.existing_vnet_id), length(split("/", var.existing_vnet_id)) - 1) : azurerm_virtual_network.main[0].name
-  # Each subnet: caller-supplied in existing-VNet mode, else the one created here.
+  vnet_name                   = local.use_existing_vnet ? element(split("/", var.existing_vnet_id), length(split("/", var.existing_vnet_id)) - 1) : azurerm_virtual_network.main[0].name
   admin_subnet_id             = local.use_existing_vnet ? var.existing_subnet_id : azurerm_subnet.admin[0].id
   aks_system_subnet_id        = local.use_existing_vnet ? var.existing_aks_system_subnet_id : azurerm_subnet.aks_system[0].id
   aks_workload_subnet_id      = local.use_existing_vnet ? var.existing_aks_workload_subnet_id : azurerm_subnet.aks_workload[0].id
@@ -233,9 +230,7 @@ resource "azurerm_subnet_network_security_group_association" "admin" {
 ################################################################################
 
 resource "azurerm_public_ip" "bastion" {
-  # Bastion (host, IP, subnet) only in module-created-VNet mode; the subnet is
-  # gated the same way, so an unguarded host here would index bastion[0] on a
-  # count=0 subnet. Existing-VNet mode = bring-your-own access.
+  # Gated like azurerm_subnet.bastion so this never indexes a count=0 subnet.
   count = var.bastion_enabled && !local.use_existing_vnet ? 1 : 0
 
   name                = "granica-bastion-ip-${var.server_name}"

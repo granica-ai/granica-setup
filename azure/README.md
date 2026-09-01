@@ -69,9 +69,8 @@ If you are working in Azure Cloud Shell you must be logged in as Owner. If you a
 7. Login to the Admin Server
 
    By default the admin server has **no public IP** and is reached through
-   **Azure Bastion** — the same model as `aws ssm start-session` on AWS and
-   `gcloud compute ssh --tunnel-through-iap` on GCP (a managed, identity-gated
-   tunnel; the VM stays private). `terraform apply` prints the exact command.
+   **Azure Bastion** (the VM stays private). `terraform apply` prints the exact
+   command.
    ```bash
    # Default (bastion_enabled = true): tunnel in through Bastion
    az network bastion ssh \

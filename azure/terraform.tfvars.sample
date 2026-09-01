@@ -16,8 +16,8 @@ server_name = "dev"
 # Optional: enable a public IP on the admin server (dev/test only).
 # public_ip_enabled = true
 
-# Bastion is created by default (the private-VM access path, like SSM on aws /
-# IAP on gcp). Set false only for dev/test, and use public_ip_enabled instead.
+# Bastion is created by default (the private-VM access path). Set false only for
+# dev/test, and use public_ip_enabled instead.
 # bastion_enabled = false
 
 # --- Optional: existing VNet (when empty, a new VNet is created) ---
