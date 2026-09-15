@@ -88,6 +88,17 @@ resource "azurerm_role_assignment" "admin_network" {
   principal_id         = azurerm_user_assigned_identity.admin.principal_id
 }
 
+# In existing-VNet mode the subnets live outside this resource group, so the grant
+# above does not reach them. The admin identity's later `granica deploy` creates AKS
+# in the supplied subnets and VNet-integrates Postgres, both of which need subnet
+# join/read — grant Network Contributor on the supplied VNet so those succeed.
+resource "azurerm_role_assignment" "admin_existing_vnet_network" {
+  count                = local.use_existing_vnet ? 1 : 0
+  scope                = var.existing_vnet_id
+  role_definition_name = "Network Contributor"
+  principal_id         = azurerm_user_assigned_identity.admin.principal_id
+}
+
 # Private DNS Zone Contributor: manage private DNS zones for private endpoints
 resource "azurerm_role_assignment" "admin_private_dns" {
   scope                = azurerm_resource_group.main.id

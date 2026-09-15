@@ -68,10 +68,10 @@ variable "existing_aks_workload_subnet_id" {
   description = "Resource ID of an existing AKS workload/spot node subnet. Required when existing_vnet_id is set."
 }
 
-variable "existing_private_endpoints_subnet_id" {
+variable "existing_postgres_subnet_id" {
   type        = string
   default     = ""
-  description = "Resource ID of an existing subnet for private endpoints (DB/Storage). Must be delegated to Microsoft.DBforPostgreSQL/flexibleServers. Required when existing_vnet_id is set."
+  description = "Resource ID of an existing subnet delegated to Microsoft.DBforPostgreSQL/flexibleServers for PostgreSQL Flexible Server VNet integration. Required when existing_vnet_id is set."
 }
 
 variable "public_ip_enabled" {

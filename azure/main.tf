@@ -18,9 +18,9 @@ check "existing_vnet_subnets" {
       length(var.existing_subnet_id) > 0 &&
       length(var.existing_aks_system_subnet_id) > 0 &&
       length(var.existing_aks_workload_subnet_id) > 0 &&
-      length(var.existing_private_endpoints_subnet_id) > 0
+      length(var.existing_postgres_subnet_id) > 0
     )
-    error_message = "When existing_vnet_id is set, all of existing_subnet_id, existing_aks_system_subnet_id, existing_aks_workload_subnet_id, and existing_private_endpoints_subnet_id must be provided."
+    error_message = "When existing_vnet_id is set, all of existing_subnet_id, existing_aks_system_subnet_id, existing_aks_workload_subnet_id, and existing_postgres_subnet_id must be provided."
   }
 }
 
@@ -29,11 +29,11 @@ locals {
   vnet_id           = local.use_existing_vnet ? var.existing_vnet_id : azurerm_virtual_network.main[0].id
   # The krypton azure infrastructure requires vnet_name (not just vnet_id). For an
   # existing VNet, derive it from the last segment of the resource ID.
-  vnet_name                   = local.use_existing_vnet ? element(split("/", var.existing_vnet_id), length(split("/", var.existing_vnet_id)) - 1) : azurerm_virtual_network.main[0].name
-  admin_subnet_id             = local.use_existing_vnet ? var.existing_subnet_id : azurerm_subnet.admin[0].id
-  aks_system_subnet_id        = local.use_existing_vnet ? var.existing_aks_system_subnet_id : azurerm_subnet.aks_system[0].id
-  aks_workload_subnet_id      = local.use_existing_vnet ? var.existing_aks_workload_subnet_id : azurerm_subnet.aks_workload[0].id
-  private_endpoints_subnet_id = local.use_existing_vnet ? var.existing_private_endpoints_subnet_id : azurerm_subnet.private_endpoints[0].id
+  vnet_name              = local.use_existing_vnet ? element(split("/", var.existing_vnet_id), length(split("/", var.existing_vnet_id)) - 1) : azurerm_virtual_network.main[0].name
+  admin_subnet_id        = local.use_existing_vnet ? var.existing_subnet_id : azurerm_subnet.admin[0].id
+  aks_system_subnet_id   = local.use_existing_vnet ? var.existing_aks_system_subnet_id : azurerm_subnet.aks_system[0].id
+  aks_workload_subnet_id = local.use_existing_vnet ? var.existing_aks_workload_subnet_id : azurerm_subnet.aks_workload[0].id
+  postgres_subnet_id     = local.use_existing_vnet ? var.existing_postgres_subnet_id : azurerm_subnet.postgres[0].id
 }
 
 resource "azurerm_virtual_network" "main" {
@@ -76,19 +76,19 @@ resource "azurerm_subnet" "aks_workload" {
   address_prefixes     = [cidrsubnet(var.vpc_cidr, 5, 1)] # 10.47.8.0/21
 }
 
-# Private endpoints subnet (DB, Storage, Service Bus)
-resource "azurerm_subnet" "private_endpoints" {
+# Postgres subnet — the PostgreSQL Flexible Server's VNet-integration subnet.
+resource "azurerm_subnet" "postgres" {
   count = local.use_existing_vnet ? 0 : 1
 
-  name                 = "granica-private-endpoints-subnet"
+  name                 = "granica-postgres-subnet"
   resource_group_name  = azurerm_resource_group.main.name
   virtual_network_name = azurerm_virtual_network.main[0].name
   address_prefixes     = [cidrsubnet(var.vpc_cidr, 8, 16)] # 10.47.16.0/24
 
   # The PostgreSQL Flexible Server (deployed by krypton) uses this subnet as its
   # delegated_subnet_id for VNet integration, which requires the subnet be
-  # delegated to Microsoft.DBforPostgreSQL/flexibleServers. Only Postgres uses
-  # this subnet, so the delegation is safe here.
+  # delegated to Microsoft.DBforPostgreSQL/flexibleServers. The delegation means
+  # this subnet can host only Postgres — it cannot hold private endpoints.
   delegation {
     name = "postgres-flexible-server"
     service_delegation {
@@ -96,6 +96,11 @@ resource "azurerm_subnet" "private_endpoints" {
       actions = ["Microsoft.Network/virtualNetworks/subnets/join/action"]
     }
   }
+}
+
+moved {
+  from = azurerm_subnet.private_endpoints[0]
+  to   = azurerm_subnet.postgres[0]
 }
 
 # Bastion subnet (must be named AzureBastionSubnet)

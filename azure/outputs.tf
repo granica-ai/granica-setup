@@ -23,9 +23,9 @@ output "aks_workload_subnet_id" {
   value       = local.aks_workload_subnet_id
 }
 
-output "private_endpoints_subnet_id" {
-  description = "The ID of the private endpoints subnet"
-  value       = local.private_endpoints_subnet_id
+output "postgres_subnet_id" {
+  description = "The ID of the Postgres-delegated subnet"
+  value       = local.postgres_subnet_id
 }
 
 output "instance_id" {
