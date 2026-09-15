@@ -26,18 +26,30 @@ resource "azurerm_role_assignment" "admin_contributor" {
   principal_id         = azurerm_user_assigned_identity.admin.principal_id
 }
 
-# User Access Administrator: assign RBAC roles to managed identities created by granica deploy
-# Scoped to subscription (not just RG) because some roles like Monitoring Metrics Publisher
-# need subscription-level assignment
+# User Access Administrator: `granica deploy` creates role assignments for the
+# workload identities it provisions. Scoped to this resource group so a
+# compromised admin VM cannot grant itself roles outside the workload.
 resource "azurerm_role_assignment" "admin_user_access" {
-  scope                = "/subscriptions/${var.subscription_id}"
+  scope                = azurerm_resource_group.main.id
   role_definition_name = "User Access Administrator"
   principal_id         = azurerm_user_assigned_identity.admin.principal_id
 }
 
-# Monitoring Contributor: allows admin to assign monitoring roles to workload identities
+# In existing-VNet mode the subnets live outside this resource group. `granica
+# deploy` creates the Network Contributor assignment on those subnets, which
+# requires User Access Administrator on the supplied VNet.
+resource "azurerm_role_assignment" "admin_existing_vnet_user_access" {
+  count                = local.use_existing_vnet ? 1 : 0
+  scope                = var.existing_vnet_id
+  role_definition_name = "User Access Administrator"
+  principal_id         = azurerm_user_assigned_identity.admin.principal_id
+}
+
+# Monitoring Contributor: `granica deploy` assigns monitoring roles to the
+# workload identities. Scoped to this resource group so the grant cannot reach
+# resources outside the workload.
 resource "azurerm_role_assignment" "admin_monitoring" {
-  scope                = "/subscriptions/${var.subscription_id}"
+  scope                = azurerm_resource_group.main.id
   role_definition_name = "Monitoring Contributor"
   principal_id         = azurerm_user_assigned_identity.admin.principal_id
 }
@@ -71,8 +83,6 @@ resource "azurerm_role_assignment" "admin_storage" {
 #   - Service Bus Namespace Contributor (create/manage queues)
 #   - Network Contributor (manage VNet, subnets, NSGs)
 #   - Managed Identity Contributor (create workload identities)
-# TODO (production): Scope User Access Administrator to RG instead of subscription
-#   (requires pre-creating the Monitoring Metrics Publisher role assignment separately)
 
 # Managed Identity Operator: assign managed identities to AKS and workload pods
 resource "azurerm_role_assignment" "admin_mi_operator" {

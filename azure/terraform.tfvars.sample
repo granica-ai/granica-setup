@@ -10,8 +10,8 @@ package_url = "https://granica.ai/granica.rpm"
 # Optional: suffix for the admin server name (defaults to "dev").
 server_name = "dev"
 
-# Optional: VM size for the admin server (defaults to Standard_B2s).
-# vm_size = "Standard_B2s"
+# Optional: VM size for the admin server (defaults to Standard_D2ads_v7).
+# vm_size = "Standard_D2ads_v7"
 
 # Optional: enable a public IP on the admin server (dev/test only).
 # public_ip_enabled = true
@@ -19,6 +19,10 @@ server_name = "dev"
 # Bastion is created by default (the private-VM access path). Set false only for
 # dev/test, and use public_ip_enabled instead.
 # bastion_enabled = false
+
+# Standing cost: Azure Bastion and the NAT gateway are billed continuously (per
+# hour plus data) from creation until destroy, whether or not the admin server
+# is in use.
 
 # --- Optional: existing VNet (when empty, a new VNet is created) ---
 # When existing_vnet_id is set you must also pass every subnet the deploy needs,

@@ -134,6 +134,10 @@ for i in 1 2 3; do
   echo "Azure CLI install attempt $i failed; retrying in 15s..."
   sleep 15
 done
+if ! command -v az >/dev/null 2>&1; then
+  echo "ERROR: Azure CLI install failed after 3 attempts. The admin server cannot run granica deploy without az." >&2
+  exit 1
+fi
 
 # Create granica user home directory and setup
 echo "Setting up ${var.admin_username} user..."
@@ -147,6 +151,7 @@ region             = "${var.region}"
 resource_group     = "${azurerm_resource_group.main.name}"
 vnet_id            = "${local.vnet_id}"
 vnet_name          = "${local.vnet_name}"
+vnet_resource_group = "${local.vnet_resource_group}"
 admin_subnet_id    = "${local.admin_subnet_id}"
 aks_system_subnet_id    = "${local.aks_system_subnet_id}"
 aks_workload_subnet_id  = "${local.aks_workload_subnet_id}"
@@ -201,7 +206,17 @@ while [ $success = false ] && [ $attempt_num -le $max_attempts ]; do
 done
 
 if [ "$success" = false ]; then
-  echo "ERROR: Failed to install Granica package after $max_attempts attempts"
+  echo "ERROR: Failed to install Granica package after $max_attempts attempts" >&2
+  exit 1
+fi
+
+# Confirm the RPM is actually registered in the rpm database. The install loop
+# above can report success on a transient yum exit, so verify by querying the
+# downloaded package's name.
+pkg_name=$(rpm -qp --queryformat '%%{NAME}' /tmp/granica.rpm 2>/dev/null)
+if [ -z "$pkg_name" ] || ! rpm -q "$pkg_name" >/dev/null 2>&1; then
+  echo "ERROR: Granica package is not installed in the rpm database after install." >&2
+  exit 1
 fi
 
 # Ensure cron is enabled (RHEL uses crond)

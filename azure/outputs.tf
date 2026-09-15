@@ -8,6 +8,11 @@ output "vnet_id" {
   value       = local.vnet_id
 }
 
+output "vnet_resource_group" {
+  description = "The resource group that contains the VNet"
+  value       = local.vnet_resource_group
+}
+
 output "admin_subnet_id" {
   description = "The ID of the admin subnet"
   value       = local.admin_subnet_id
@@ -58,16 +63,21 @@ output "ssh_command" {
   value = var.public_ip_enabled ? join("\n", [
     "terraform output -raw ssh_private_key > admin-key.pem && chmod 600 admin-key.pem",
     "ssh -i admin-key.pem ${var.admin_username}@${azurerm_public_ip.admin[0].ip_address}",
-    ]) : (var.bastion_enabled && !local.use_existing_vnet ? join(" ", [
-      "az network bastion ssh",
-      "--resource-group ${azurerm_resource_group.main.name}",
-      "--name granica-bastion-${var.server_name}",
-      "--target-resource-id ${azurerm_linux_virtual_machine.admin.id}",
-      "--auth-type AAD",
-      ]) : join("\n", [
-      "# No public IP or Bastion — use Azure Serial Console:",
-      "# Azure Portal → Virtual Machines → ${azurerm_linux_virtual_machine.admin.name} → Help → Serial Console",
-  ]))
+    ]) : (local.use_existing_vnet ? join("\n", [
+      "# Existing-VNet mode: no Bastion or public IP is created.",
+      "# Reach the admin server (private IP ${azurerm_network_interface.admin.private_ip_address}) over",
+      "# the connectivity you provide into this VNet (existing Bastion, VPN, or VNet peering),",
+      "# then SSH as ${var.admin_username} (AAD login is enabled via az ssh vm through your own route).",
+      ]) : (var.bastion_enabled ? join(" ", [
+        "az network bastion ssh",
+        "--resource-group ${azurerm_resource_group.main.name}",
+        "--name granica-bastion-${var.server_name}",
+        "--target-resource-id ${azurerm_linux_virtual_machine.admin.id}",
+        "--auth-type AAD",
+        ]) : join("\n", [
+        "# No public IP or Bastion — use Azure Serial Console:",
+        "# Azure Portal → Virtual Machines → ${azurerm_linux_virtual_machine.admin.name} → Help → Serial Console",
+  ])))
 }
 
 output "ssh_private_key" {

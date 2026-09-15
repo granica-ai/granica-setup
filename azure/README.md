@@ -86,6 +86,14 @@ If you are working in Azure Cloud Shell you must be logged in as Owner. If you a
    ```bash
    az ssh vm --resource-group granica-{server_name}-rg --name granica-admin-server-{server_name}
    ```
+
+   **Existing-VNet mode** (`existing_vnet_id` set): no Bastion and no public IP
+   are created, so this state does not provision any access path to the admin
+   server. You must supply your own connectivity into the VNet — an existing
+   Bastion host, a VPN gateway, or VNet peering from a network you can reach —
+   and then SSH to the VM's private IP as the `granica` user (AAD login works
+   over your own route). The `ssh_command` output reflects this.
+
    (Use the connect command printed at the end of the terraform apply)
    ```bash
    $ sudo su - granica # Use granica user to run granica commands
@@ -95,3 +103,24 @@ If you are working in Azure Cloud Shell you must be logged in as Owner. If you a
    $ granica deploy --var-file config.tfvars
    # Will take around 10-15 mins for the clusters to be deployed
    ```
+
+### Teardown
+
+Destroy in the reverse order of creation. The krypton workload consumes this
+state's resource group, subnets, NAT gateway associations, admin managed
+identity, and access path, so it must go first.
+
+1. On the admin server, destroy the Granica workload:
+   ```bash
+   $ sudo su - granica
+   $ granica destroy --var-file config.tfvars
+   ```
+2. From your workstation (or Cloud Shell), destroy this bootstrap state:
+   ```bash
+   terraform destroy -var-file=terraform.tfvars
+   ```
+
+Do not `terraform destroy` this state before the workload is gone. Its subnets
+are still in use by the AKS nodes and Postgres, and its resource group is not
+empty, so the destroy will fail or strand orphaned resources. Tear down the
+workload first, then this state.

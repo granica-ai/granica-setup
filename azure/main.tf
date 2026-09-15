@@ -34,6 +34,10 @@ locals {
   aks_system_subnet_id   = local.use_existing_vnet ? var.existing_aks_system_subnet_id : azurerm_subnet.aks_system[0].id
   aks_workload_subnet_id = local.use_existing_vnet ? var.existing_aks_workload_subnet_id : azurerm_subnet.aks_workload[0].id
   postgres_subnet_id     = local.use_existing_vnet ? var.existing_postgres_subnet_id : azurerm_subnet.postgres[0].id
+  # krypton looks up the VNet by name within a resource group. For an existing
+  # VNet that RG can differ from the workload RG, so parse it from the VNet ID's
+  # /resourceGroups/<rg>/ segment.
+  vnet_resource_group = local.use_existing_vnet ? regex("/resourceGroups/([^/]+)/", var.existing_vnet_id)[0] : azurerm_resource_group.main.name
 }
 
 resource "azurerm_virtual_network" "main" {
