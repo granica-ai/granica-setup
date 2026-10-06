@@ -77,7 +77,23 @@ variable "existing_public_subnet_ids" {
 variable "create_s3_vpc_endpoint" {
   type        = bool
   default     = null
-  description = "Set to false to skip creating the S3 Gateway VPC endpoint (e.g. VPC already has one; avoids RouteAlreadyExists). When null, defaults to false if existing_vpc_id is set, else true."
+  description = "Set to false to skip creating the S3 Gateway VPC endpoint. When null, defaults to true unless the VPC's route tables already carry a route to the regional S3 prefix list (which would fail with RouteAlreadyExists)."
+}
+
+variable "create_ecr_vpc_endpoints" {
+  type        = bool
+  default     = false
+  description = <<-EOT
+    Create Interface VPC endpoints for ecr.api and ecr.dkr.
+
+    Not needed to keep image pulls off NAT: ECR redirects layer downloads to S3,
+    so the S3 Gateway endpoint carries effectively all pull bytes at no charge.
+    These endpoints only cover the small control-plane calls (auth, manifest) and
+    bill $0.01/hr per AZ per endpoint, so at normal pull volumes they cost more
+    than the NAT processing they remove.
+
+    Enable when the VPC must reach ECR without a NAT gateway at all.
+  EOT
 }
 
 variable "instance_connect" {

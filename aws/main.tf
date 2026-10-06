@@ -14,6 +14,17 @@ data "aws_route_tables" "existing" {
   vpc_id = var.existing_vpc_id
 }
 
+# Routes of each existing route table, to detect an S3 gateway endpoint already
+# attached to the VPC. Empty for a VPC we create, which never has one yet.
+data "aws_route_table" "existing" {
+  for_each       = length(var.existing_vpc_id) > 0 ? toset(data.aws_route_tables.existing[0].ids) : toset([])
+  route_table_id = each.value
+}
+
+data "aws_ec2_managed_prefix_list" "s3" {
+  name = "com.amazonaws.${var.aws_region}.s3"
+}
+
 locals {
   # IAM naming + boundary lines for krypton's config.tfvars, included only for vars
   # that differ from their defaults, so we never write blanks/defaults that would
@@ -55,6 +66,10 @@ module "vpc" {
   one_nat_gateway_per_az  = false
   map_public_ip_on_launch = false
 
+  # Required for private_dns_enabled on the ECR interface endpoints.
+  enable_dns_hostnames = true
+  enable_dns_support   = true
+
   public_subnet_tags = {
     "Name" = "granica-vpc-${var.server_name}-public-subnet"
   }
@@ -74,6 +89,14 @@ check "existing_vpc_subnets" {
     condition     = length(var.existing_vpc_id) == 0 || !var.public_ip_enabled || length(var.existing_public_subnet_ids) > 0
     error_message = "When existing_vpc_id is set and public_ip_enabled is true, existing_public_subnet_ids must have at least one subnet."
   }
+  assert {
+    condition = (
+      length(var.existing_vpc_id) == 0 ||
+      !var.create_ecr_vpc_endpoints ||
+      (data.aws_vpc.existing[0].enable_dns_hostnames && data.aws_vpc.existing[0].enable_dns_support)
+    )
+    error_message = "create_ecr_vpc_endpoints requires enableDnsHostnames and enableDnsSupport on the VPC; without both, private DNS does not take effect and image pulls stay on the NAT gateway."
+  }
 }
 
 locals {
@@ -88,7 +111,16 @@ locals {
   public_subnet_ids        = local.use_existing_vpc ? var.existing_public_subnet_ids : module.vpc[0].public_subnets
   route_table_ids          = local.use_existing_vpc ? data.aws_route_tables.existing[0].ids : concat(module.vpc[0].public_route_table_ids, module.vpc[0].private_route_table_ids)
   target_subnet_id         = var.public_ip_enabled ? local.public_subnet_ids[0] : local.private_subnet_ids[0]
-  create_s3_vpc_endpoint   = coalesce(var.create_s3_vpc_endpoint, !local.use_existing_vpc)
+
+  # A gateway endpoint installs a prefix-list route into every route table it is
+  # attached to, so creating a second one fails with RouteAlreadyExists. Detect
+  # the route rather than assuming a BYO VPC already has one -- most do not, and
+  # skipping it sends every ECR layer download through the NAT gateway.
+  s3_endpoint_route_exists = anytrue([
+    for rt in data.aws_route_table.existing :
+    anytrue([for r in rt.routes : r.destination_prefix_list_id == data.aws_ec2_managed_prefix_list.s3.id])
+  ])
+  create_s3_vpc_endpoint = coalesce(var.create_s3_vpc_endpoint, !local.s3_endpoint_route_exists)
 }
 
 resource "aws_security_group" "ec2_instance_connect" {
@@ -122,6 +154,42 @@ resource "aws_vpc_endpoint" "s3" {
   route_table_ids = local.route_table_ids
   tags = {
     Name = "granica-vpc-s3-endpoint"
+  }
+}
+
+# ECR Interface endpoints. Off by default -- see create_ecr_vpc_endpoints.
+resource "aws_security_group" "vpc_endpoints" {
+  count  = var.create_ecr_vpc_endpoints ? 1 : 0
+  vpc_id = local.vpc_id
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [local.vpc_cidr_block]
+  }
+
+  tags = {
+    Name = "granica-vpc-endpoints"
+  }
+}
+
+resource "aws_vpc_endpoint" "ecr" {
+  for_each = var.create_ecr_vpc_endpoints ? toset(["ecr.api", "ecr.dkr"]) : toset([])
+
+  vpc_id            = local.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.${each.key}"
+  vpc_endpoint_type = "Interface"
+
+  subnet_ids         = local.private_subnet_ids
+  security_group_ids = [aws_security_group.vpc_endpoints[0].id]
+
+  # Without this the stock ECR hostnames keep resolving to public IPs and pulls
+  # silently stay on NAT. Requires DNS hostnames and support on the VPC.
+  private_dns_enabled = true
+
+  tags = {
+    Name = "granica-vpc-${each.key}-endpoint"
   }
 }
 
