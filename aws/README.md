@@ -9,6 +9,10 @@ This guide will help you set up and destroy a Granica Admin Server with its VPC 
   * **New VPC:** EC2/VPC permissions for `terraform-aws-modules/vpc` plus the admin instance; see [`customer/fde/aws/docs/fde-user-new-vpc.json`](../customer/fde/aws/docs/fde-user-new-vpc.json). Replace **`ACCOUNT_ID`**. VPC build APIs use `Resource: *` (except **`RunInstances`** / **`TerminateInstances`**, which are scoped + tag conditions for the admin server).
 * Git installed on your system (or use AWS CloudShell, which includes Git).
 
+### Subnet sizing requirements
+
+See [Subnet sizing requirements](../README.md#subnet-sizing-requirements) — use **`/20` per AZ** where possible, **`/22` per AZ minimum**, one private subnet per AZ across at least two AZs.
+
 ### AWS CloudShell and Terraform disk space
 
 AWS CloudShell gives you a small **home** volume (on the order of **1 GiB**). A normal `terraform init` in `granica-setup/aws` stores the AWS provider (and module/plugin metadata) under `.terraform` in that directory, which often **fills `$HOME`** and breaks installs, shells, or git.
@@ -70,6 +74,8 @@ existing_private_subnet_ids  = ["subnet-aaa", "subnet-bbb"]
 existing_public_subnet_ids   = ["subnet-ccc"]   # Required only if public_ip_enabled = true
 ```
 The admin server is placed in the first private (or public, if `public_ip_enabled`) subnet. By default, an S3 Gateway VPC endpoint is *not* created when `existing_vpc_id` is set (to avoid `RouteAlreadyExists`). Set `create_s3_vpc_endpoint = true` to create it anyway.
+
+Size your private subnets per the [Subnet sizing requirements](../README.md#subnet-sizing-requirements) — use `/20` per AZ where possible, `/22` per AZ minimum.
 
 **2.2 [Optional] IAM role/policy naming and permission boundary**
 
