@@ -51,7 +51,11 @@ If you are working in Cloud Shell you must be logged in as Admin. If you are run
    zone           = "us-central1-a"
    package_url    = "https://granica.ai/granica.rpm"
    server_name    = "CHANGE_ME"
+   # Enable only for a fresh VPC that will also host a Kandor GKE data plane.
+   gke_secondary_ranges_enabled = true
    ```
+
+   This opt-in adds pod range `10.8.0.0/14` and service range `10.12.0.0/20` to private subnet 1 and enables private Google access. Check that these ranges do not overlap with existing routes or peerings. When using `deploy_core_infra.sh`, set `GRANICA_GKE_SECONDARY_RANGES_ENABLED=true`; the script writes `terraform.tfvars` itself.
 
 6. Run the following
    ```bash

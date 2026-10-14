@@ -52,3 +52,9 @@ variable "server_name" {
     error_message = "server_name must be 15 characters or less to avoid GCP naming limits."
   }
 }
+
+variable "gke_secondary_ranges_enabled" {
+  description = "Add pod and service secondary ranges to private subnet 1 for a fresh Kandor GKE data plane. Defaults off for existing admin servers."
+  type        = bool
+  default     = false
+}

@@ -44,6 +44,11 @@ else
 fi
 REGION=${ZONE%-*}
 PROJECT=$(gcloud config get-value project 2>/dev/null | tail -n 1)
+GKE_SECONDARY_RANGES_ENABLED=${GRANICA_GKE_SECONDARY_RANGES_ENABLED:-false}
+if [[ "$GKE_SECONDARY_RANGES_ENABLED" != "true" && "$GKE_SECONDARY_RANGES_ENABLED" != "false" ]]; then
+  echo "GRANICA_GKE_SECONDARY_RANGES_ENABLED must be true or false" >&2
+  exit 1
+fi
 
 echo "Using GCP Project:              $PROJECT"
 echo "Using GCP Region:               $REGION"
@@ -156,6 +161,7 @@ region      = "$REGION"
 zone        = "$ZONE"
 package_url = "$RPM_URL"
 server_name = "${CUSTOMER_ID}-${DEPLOYMENT_NAME}"
+gke_secondary_ranges_enabled = ${GKE_SECONDARY_RANGES_ENABLED}
 EOF
 echo "Updated terraform.tfvars"
 

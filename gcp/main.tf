@@ -27,8 +27,8 @@ data "external" "cloud_shell_user_email" {
 
 # Sanitize email for GCP label constraints (lowercase, alphanumeric, underscores, dashes only, max 63 chars)
 locals {
-  detected_email      = try(data.google_client_openid_userinfo.me.email, null)
-  cloud_shell_email   = try(data.external.cloud_shell_user_email.result.email, "")
+  detected_email    = try(data.google_client_openid_userinfo.me.email, null)
+  cloud_shell_email = try(data.external.cloud_shell_user_email.result.email, "")
   raw_owner_id = (
     var.owner_id != "" ? var.owner_id :
     local.detected_email != null ? local.detected_email :
@@ -66,10 +66,21 @@ resource "google_compute_network" "vpc_network" {
 }
 
 resource "google_compute_subnetwork" "private_subnet_1" {
-  name          = "granica-vpc-${var.server_name}-private-subnet-1"
-  ip_cidr_range = "10.47.1.0/24"
-  region        = var.region
-  network       = google_compute_network.vpc_network.self_link
+  name                     = "granica-vpc-${var.server_name}-private-subnet-1"
+  ip_cidr_range            = "10.47.1.0/24"
+  region                   = var.region
+  network                  = google_compute_network.vpc_network.self_link
+  private_ip_google_access = var.gke_secondary_ranges_enabled
+  dynamic "secondary_ip_range" {
+    for_each = var.gke_secondary_ranges_enabled ? {
+      pods     = "10.8.0.0/14"
+      services = "10.12.0.0/20"
+    } : {}
+    content {
+      range_name    = secondary_ip_range.key
+      ip_cidr_range = secondary_ip_range.value
+    }
+  }
 }
 
 resource "google_compute_subnetwork" "private_subnet_2" {
