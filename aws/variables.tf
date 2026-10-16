@@ -4,7 +4,7 @@ variable "aws_region" {
 }
 
 variable "package_url" {
-  description = "URL to the granica package"
+  description = "URL to the granica package; empty skips RPM installation for Terraform artifact deployment."
   type        = string
 }
 

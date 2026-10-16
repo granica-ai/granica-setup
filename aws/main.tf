@@ -364,6 +364,7 @@ echo "owner_arn          = \"${data.aws_caller_identity.current.arn}\"" >> /home
 printf '%s' '${local.iam_config_tfvars}' >> /home/ec2-user/config.tfvars
 chown ec2-user:ec2-user /home/ec2-user/config.tfvars
 
+if [ -n "${var.package_url}" ]; then
 max_attempts=5
 attempt_num=1
 success=false
@@ -384,6 +385,9 @@ done
 
 if [ "$success" = false ]; then
   echo "ERROR: Failed to install Granica package after $max_attempts attempts"
+fi
+else
+  echo "Skipping Granica RPM installation; deployer tools will be installed separately."
 fi
 
 # Verify cron is still running after RPM installation
