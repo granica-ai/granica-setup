@@ -311,6 +311,28 @@ data "aws_iam_policy_document" "deploy" {
     resources = ["*"]
   }
 
+  statement {
+    sid       = "DescribeKandorDPLogs"
+    effect    = "Allow"
+    actions   = ["logs:DescribeLogGroups"]
+    resources = ["*"]
+  }
+
+  # EKS secret encryption uses a new CMK whose ARN is unknown until creation.
+  # Restrict the alias name to Kandor DP while permitting the new key target.
+  dynamic "statement" {
+    for_each = var.serverless ? [] : [1]
+    content {
+      sid     = "KandorDPKmsAliases"
+      effect  = "Allow"
+      actions = ["kms:CreateAlias", "kms:DeleteAlias", "kms:UpdateAlias"]
+      resources = [
+        "arn:aws:kms:*:*:alias/granica-dp-*",
+        "arn:aws:kms:*:*:key/*"
+      ]
+    }
+  }
+
   # --- EKS / Karpenter (k8s deploy path only; gated off for serverless) --------------------------
   dynamic "statement" {
     for_each = var.serverless ? [] : [1]
@@ -318,16 +340,32 @@ data "aws_iam_policy_document" "deploy" {
       sid    = "EKS"
       effect = "Allow"
       actions = [
+        "eks:AssociateAccessPolicy",
+        "eks:CreateAccessEntry",
+        "eks:CreateNodegroup",
+        "eks:DeleteAccessEntry",
+        "eks:DeleteNodegroup",
+        "eks:DescribeAccessEntry",
+        "eks:DescribeNodegroup",
         "eks:DescribeUpdate",
         "eks:DescribeCluster",
+        "eks:DisassociateAccessPolicy",
+        "eks:ListAccessEntries",
+        "eks:ListAssociatedAccessPolicies",
+        "eks:ListNodegroups",
         "eks:UpdateClusterConfig",
         "eks:UpdateClusterVersion",
+        "eks:UpdateNodegroupConfig",
+        "eks:UpdateNodegroupVersion",
         "eks:AssociateEncryptionConfig",
         "eks:TagResource",
         "eks:UntagResource"
       ]
       resources = [
-        "arn:aws:eks:*:*:cluster/project-n-*"
+        "arn:aws:eks:*:*:cluster/project-n-*",
+        "arn:aws:eks:*:*:cluster/granica-dp-*",
+        "arn:aws:eks:*:*:nodegroup/granica-dp-*/*/*",
+        "arn:aws:eks:*:*:access-entry/granica-dp-*/*/*/*/*"
       ]
     }
   }
@@ -349,7 +387,9 @@ data "aws_iam_policy_document" "deploy" {
       ]
       resources = [
         "arn:aws:eks:*:*:addon/project-n-*/*/*",
-        "arn:aws:eks:*:*:cluster/project-n-*"
+        "arn:aws:eks:*:*:cluster/project-n-*",
+        "arn:aws:eks:*:*:addon/granica-dp-*/*/*",
+        "arn:aws:eks:*:*:cluster/granica-dp-*"
       ]
     }
   }
@@ -382,7 +422,8 @@ data "aws_iam_policy_document" "deploy" {
         "sqs:UntagQueue"
       ]
       resources = [
-        "arn:aws:sqs:*:*:project-n-*"
+        "arn:aws:sqs:*:*:project-n-*",
+        "arn:aws:sqs:*:*:granica-dp-*"
       ]
     }
   }
@@ -406,7 +447,8 @@ data "aws_iam_policy_document" "deploy" {
         "events:UntagResource",
       ]
       resources = [
-        "arn:aws:events:*:*:rule/project-n-*"
+        "arn:aws:events:*:*:rule/project-n-*",
+        "arn:aws:events:*:*:rule/granica-dp-*"
       ]
     }
   }
@@ -425,6 +467,7 @@ data "aws_iam_policy_document" "deploy" {
     ]
     resources = [
       "arn:aws:logs:*:*:log-group:/aws/eks/project-n*",
+      "arn:aws:logs:*:*:log-group:/aws/eks/granica-dp-*",
       "arn:aws:logs:*:*:log-group::log-stream*"
     ]
   }
