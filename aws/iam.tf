@@ -312,9 +312,9 @@ data "aws_iam_policy_document" "deploy" {
   }
 
   statement {
-    sid       = "DescribeKandorDPLogs"
+    sid       = "ListKandorDPResources"
     effect    = "Allow"
-    actions   = ["logs:DescribeLogGroups"]
+    actions   = ["logs:DescribeLogGroups", "kms:ListAliases"]
     resources = ["*"]
   }
 
@@ -460,9 +460,12 @@ data "aws_iam_policy_document" "deploy" {
       "logs:CreateLogGroup",
       "logs:DescribeLogGroups",
       "logs:ListTagsLogGroup",
+      "logs:ListTagsForResource",
       "logs:PutRetentionPolicy",
       "logs:TagLogGroup",
+      "logs:TagResource",
       "logs:UntagLogGroup",
+      "logs:UntagResource",
       "logs:DeleteLogGroup"
     ]
     resources = [
