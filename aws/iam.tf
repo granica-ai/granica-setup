@@ -266,6 +266,7 @@ data "aws_iam_policy_document" "deploy" {
       "arn:aws:iam::*:oidc-provider/oidc.eks.*.amazonaws.com",
       "arn:aws:iam::*:oidc-provider/oidc.eks.*.amazonaws.com/id/*",
       "arn:aws:iam::*:role/aws-service-role/eks.amazonaws.com/AWSServiceRoleForAmazonEKS",
+      "arn:aws:iam::*:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup",
       "arn:aws:iam::*:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling",
       "arn:aws:iam::*:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing"
     ], local.derived_iam_resource_arns)
