@@ -84,6 +84,15 @@ permission_boundary_arn           = "arn:aws:iam::<ACCOUNT_ID>:policy/BasicRole_
 permission_boundary_on_admin_role = false                                                 # Also attach the boundary to the admin/deployer role?
 ```
 
+**2.3 [Optional] SSM Session Manager S3 logging**
+
+If your account's Session Manager preferences stream session logs to an S3 bucket with **enforce encryption**, the SSM agent uses the admin server's instance role to validate that bucket (`s3:GetEncryptionConfiguration`) and write the log (`s3:PutObject`). The deploy role's S3 access is scoped to `n-*`/`project-n-*`/`granica-*`, so a separate log bucket is out of scope and **sessions are terminated at start with a 403**. Set the bucket name to grant exactly that access (defaults off):
+
+```hcl
+ssm_session_log_bucket = "my-org-ssm-session-logs"   # the s3BucketName in the account's Session Manager prefs
+ssm_session_log_prefix = "session-manager"           # the s3KeyPrefix (default "session-manager")
+```
+
 **3. Deploy the admin server**
 ```bash
 terraform init -backend-config=backend.conf

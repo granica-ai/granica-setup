@@ -311,6 +311,36 @@ data "aws_iam_policy_document" "deploy" {
     resources = ["*"]
   }
 
+  # --- SSM Session Manager S3 logging (only when the account enforces it) -------------------------
+  # On accounts whose Session Manager preferences stream session logs to an S3 bucket with
+  # "enforce encryption", the SSM agent uses the admin server's INSTANCE ROLE to validate the
+  # bucket encryption (s3:GetEncryptionConfiguration) and write the log (s3:PutObject). Without
+  # access to that bucket the session is terminated at start with an AccessDenied (403). The deploy
+  # role's S3 grant above is scoped to n-*/project-n-*/granica-* only, so the log bucket is out of
+  # scope. Set var.ssm_session_log_bucket to grant exactly that bucket; empty = no grant (default).
+  dynamic "statement" {
+    for_each = var.ssm_session_log_bucket != "" ? [1] : []
+    content {
+      sid    = "SSMSessionLogBucketValidate"
+      effect = "Allow"
+      actions = [
+        "s3:GetEncryptionConfiguration",
+        "s3:GetBucketLocation"
+      ]
+      resources = ["arn:aws:s3:::${var.ssm_session_log_bucket}"]
+    }
+  }
+
+  dynamic "statement" {
+    for_each = var.ssm_session_log_bucket != "" ? [1] : []
+    content {
+      sid       = "SSMSessionLogPut"
+      effect    = "Allow"
+      actions   = ["s3:PutObject"]
+      resources = ["arn:aws:s3:::${var.ssm_session_log_bucket}/${var.ssm_session_log_prefix}/*"]
+    }
+  }
+
   # --- EKS / Karpenter (k8s deploy path only; gated off for serverless) --------------------------
   dynamic "statement" {
     for_each = var.serverless ? [] : [1]
