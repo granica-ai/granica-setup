@@ -187,3 +187,20 @@ variable "custom_admin_instance_profile_name" {
   default     = ""
   description = "Name of a pre-existing instance profile (wrapping custom_admin_role_arn) attached to the admin server EC2 instance. Required when custom_admin_role_arn is set."
 }
+
+# SSM Session Manager S3 logging. Some accounts configure Session Manager to stream session
+# logs to an S3 bucket with "enforce encryption". There the SSM agent uses the admin server's
+# instance role to validate the bucket (s3:GetEncryptionConfiguration) and write logs
+# (s3:PutObject); without access to that bucket, sessions are terminated at start with a 403.
+# Set this to that bucket's name to grant the admin role exactly that access. Empty = no grant.
+variable "ssm_session_log_bucket" {
+  type        = string
+  default     = ""
+  description = "Name of the S3 bucket that the account's SSM Session Manager preferences log sessions to. When set, the admin (deployer) role is granted s3:GetEncryptionConfiguration/GetBucketLocation on the bucket and s3:PutObject under ssm_session_log_prefix, so Session Manager can start sessions on accounts that enforce S3 session logging. Empty means no such grant."
+}
+
+variable "ssm_session_log_prefix" {
+  type        = string
+  default     = "session-manager"
+  description = "Key prefix Session Manager writes under within ssm_session_log_bucket (the s3KeyPrefix in the account's Session Manager preferences). Only used when ssm_session_log_bucket is set."
+}
