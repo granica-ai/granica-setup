@@ -96,6 +96,33 @@ resource "aws_iam_policy" "deploy" {
   policy = data.aws_iam_policy_document.deploy.json
 }
 
+# Terraform reads CP parameter tags while creating the database password.
+# This permission must exist before the workload apply starts; attaching it
+# from within that same apply can race with IAM propagation.
+resource "aws_iam_policy" "control_plane_parameter_tags" {
+  count  = local.byo_admin_role ? 0 : 1
+  name   = "${var.policy_name_prefix}project-n-admin-cp-parameter-tags-${random_id.random_suffix.hex}"
+  path   = var.policy_path
+  policy = data.aws_iam_policy_document.control_plane_parameter_tags.json
+}
+
+data "aws_iam_policy_document" "control_plane_parameter_tags" {
+  statement {
+    sid     = "ControlPlaneParameterTags"
+    effect  = "Allow"
+    actions = ["ssm:ListTagsForResource"]
+    resources = [
+      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/granica-control-plane/*"
+    ]
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "admin_control_plane_parameter_tags" {
+  count      = local.byo_admin_role ? 0 : 1
+  policy_arn = aws_iam_policy.control_plane_parameter_tags[0].arn
+  role       = aws_iam_role.admin[0].name
+}
+
 resource "aws_iam_policy" "vpc" {
   count = !local.byo_admin_role && var.manage_vpc && length(var.existing_vpc_id) == 0 ? 1 : 0
 
