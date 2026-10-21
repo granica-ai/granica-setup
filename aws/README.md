@@ -52,12 +52,6 @@ server_name = "my-server"                # Optional: suffix for admin server nam
 airflow_enabled = true                   # Optional: enables EFS permissions for Airflow deployment (defaults to false)
 ```
 
-For a Kandor single-cluster CP+DP workload applied from this admin server, set
-`package_url = ""`, `airflow_enabled = true`, and
-`control_plane_deployment_id = "<customer_id>"`. The last input adds a
-deployment-scoped CP deploy policy to the admin role; existing DP-only admin
-servers leave it unset.
-
 Create `backend.conf` in this directory so Terraform stores its state in S3. Set `key` to a value unique to this admin server. A sample is provided in `backend.conf.sample` and below:
 ```hcl
 bucket = "your-bucket"                  # S3 bucket that holds the Terraform state
