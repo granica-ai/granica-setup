@@ -34,6 +34,17 @@ variable "airflow_enabled" {
   default = false
 }
 
+variable "control_plane_deployment_id" {
+  description = "Kandor single-cluster customer ID; when set, grant the admin server CP deploy permissions for that deployment."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.control_plane_deployment_id == "" || can(regex("^[a-z0-9][a-z0-9-]*$", var.control_plane_deployment_id))
+    error_message = "control_plane_deployment_id must be empty or a lowercase customer ID containing letters, digits, and hyphens."
+  }
+}
+
 // Place admin-server in public subnet with a public IP
 variable "public_ip_enabled" {
   type    = bool
