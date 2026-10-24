@@ -96,6 +96,33 @@ resource "aws_iam_policy" "deploy" {
   policy = data.aws_iam_policy_document.deploy.json
 }
 
+# Terraform reads CP parameter tags while creating the database password.
+# This permission must exist before the workload apply starts; attaching it
+# from within that same apply can race with IAM propagation.
+resource "aws_iam_policy" "control_plane_parameter_tags" {
+  count  = local.byo_admin_role ? 0 : 1
+  name   = "${var.policy_name_prefix}project-n-admin-cp-parameter-tags-${random_id.random_suffix.hex}"
+  path   = var.policy_path
+  policy = data.aws_iam_policy_document.control_plane_parameter_tags.json
+}
+
+data "aws_iam_policy_document" "control_plane_parameter_tags" {
+  statement {
+    sid     = "ControlPlaneParameterTags"
+    effect  = "Allow"
+    actions = ["ssm:ListTagsForResource"]
+    resources = [
+      "arn:aws:ssm:${var.aws_region}:${data.aws_caller_identity.current.account_id}:parameter/granica-control-plane/*"
+    ]
+  }
+}
+
+resource "aws_iam_role_policy_attachment" "admin_control_plane_parameter_tags" {
+  count      = local.byo_admin_role ? 0 : 1
+  policy_arn = aws_iam_policy.control_plane_parameter_tags[0].arn
+  role       = aws_iam_role.admin[0].name
+}
+
 resource "aws_iam_policy" "vpc" {
   count = !local.byo_admin_role && var.manage_vpc && length(var.existing_vpc_id) == 0 ? 1 : 0
 
@@ -266,6 +293,7 @@ data "aws_iam_policy_document" "deploy" {
       "arn:aws:iam::*:oidc-provider/oidc.eks.*.amazonaws.com",
       "arn:aws:iam::*:oidc-provider/oidc.eks.*.amazonaws.com/id/*",
       "arn:aws:iam::*:role/aws-service-role/eks.amazonaws.com/AWSServiceRoleForAmazonEKS",
+      "arn:aws:iam::*:role/aws-service-role/eks-nodegroup.amazonaws.com/AWSServiceRoleForAmazonEKSNodegroup",
       "arn:aws:iam::*:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling",
       "arn:aws:iam::*:role/aws-service-role/elasticloadbalancing.amazonaws.com/AWSServiceRoleForElasticLoadBalancing"
     ], local.derived_iam_resource_arns)
@@ -311,6 +339,28 @@ data "aws_iam_policy_document" "deploy" {
     resources = ["*"]
   }
 
+  statement {
+    sid       = "ListKandorDPResources"
+    effect    = "Allow"
+    actions   = ["logs:DescribeLogGroups", "kms:ListAliases"]
+    resources = ["*"]
+  }
+
+  # EKS secret encryption uses a new CMK whose ARN is unknown until creation.
+  # Restrict the alias name to Kandor DP while permitting the new key target.
+  dynamic "statement" {
+    for_each = var.serverless ? [] : [1]
+    content {
+      sid     = "KandorDPKmsAliases"
+      effect  = "Allow"
+      actions = ["kms:CreateAlias", "kms:DeleteAlias", "kms:UpdateAlias"]
+      resources = [
+        "arn:aws:kms:*:*:alias/granica-dp-*",
+        "arn:aws:kms:*:*:key/*"
+      ]
+    }
+  }
+
   # --- EKS / Karpenter (k8s deploy path only; gated off for serverless) --------------------------
   dynamic "statement" {
     for_each = var.serverless ? [] : [1]
@@ -318,16 +368,32 @@ data "aws_iam_policy_document" "deploy" {
       sid    = "EKS"
       effect = "Allow"
       actions = [
+        "eks:AssociateAccessPolicy",
+        "eks:CreateAccessEntry",
+        "eks:CreateNodegroup",
+        "eks:DeleteAccessEntry",
+        "eks:DeleteNodegroup",
+        "eks:DescribeAccessEntry",
+        "eks:DescribeNodegroup",
         "eks:DescribeUpdate",
         "eks:DescribeCluster",
+        "eks:DisassociateAccessPolicy",
+        "eks:ListAccessEntries",
+        "eks:ListAssociatedAccessPolicies",
+        "eks:ListNodegroups",
         "eks:UpdateClusterConfig",
         "eks:UpdateClusterVersion",
+        "eks:UpdateNodegroupConfig",
+        "eks:UpdateNodegroupVersion",
         "eks:AssociateEncryptionConfig",
         "eks:TagResource",
         "eks:UntagResource"
       ]
       resources = [
-        "arn:aws:eks:*:*:cluster/project-n-*"
+        "arn:aws:eks:*:*:cluster/project-n-*",
+        "arn:aws:eks:*:*:cluster/granica-dp-*",
+        "arn:aws:eks:*:*:nodegroup/granica-dp-*/*/*",
+        "arn:aws:eks:*:*:access-entry/granica-dp-*/*/*/*/*"
       ]
     }
   }
@@ -349,7 +415,9 @@ data "aws_iam_policy_document" "deploy" {
       ]
       resources = [
         "arn:aws:eks:*:*:addon/project-n-*/*/*",
-        "arn:aws:eks:*:*:cluster/project-n-*"
+        "arn:aws:eks:*:*:cluster/project-n-*",
+        "arn:aws:eks:*:*:addon/granica-dp-*/*/*",
+        "arn:aws:eks:*:*:cluster/granica-dp-*"
       ]
     }
   }
@@ -382,7 +450,8 @@ data "aws_iam_policy_document" "deploy" {
         "sqs:UntagQueue"
       ]
       resources = [
-        "arn:aws:sqs:*:*:project-n-*"
+        "arn:aws:sqs:*:*:project-n-*",
+        "arn:aws:sqs:*:*:granica-dp-*"
       ]
     }
   }
@@ -406,7 +475,8 @@ data "aws_iam_policy_document" "deploy" {
         "events:UntagResource",
       ]
       resources = [
-        "arn:aws:events:*:*:rule/project-n-*"
+        "arn:aws:events:*:*:rule/project-n-*",
+        "arn:aws:events:*:*:rule/granica-dp-*"
       ]
     }
   }
@@ -418,13 +488,17 @@ data "aws_iam_policy_document" "deploy" {
       "logs:CreateLogGroup",
       "logs:DescribeLogGroups",
       "logs:ListTagsLogGroup",
+      "logs:ListTagsForResource",
       "logs:PutRetentionPolicy",
       "logs:TagLogGroup",
+      "logs:TagResource",
       "logs:UntagLogGroup",
+      "logs:UntagResource",
       "logs:DeleteLogGroup"
     ]
     resources = [
       "arn:aws:logs:*:*:log-group:/aws/eks/project-n*",
+      "arn:aws:logs:*:*:log-group:/aws/eks/granica-dp-*",
       "arn:aws:logs:*:*:log-group::log-stream*"
     ]
   }
