@@ -4,6 +4,10 @@
 If you are working in Cloud Shell you must be logged in as Admin. If you are running from your laptop you will need GCloud command line credentials that gives administrator access.
 - create your own GCP Project (by default you will have the admin access for this project)
 
+### Subnet sizing requirements
+
+See [Subnet sizing requirements](../README.md#subnet-sizing-requirements) — size the **pod secondary range** at **`/20`** where possible, **`/22` minimum**.
+
 ### Instructions
 
 1. Enable GCP APIs
