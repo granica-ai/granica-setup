@@ -159,7 +159,7 @@ resource "aws_vpc_endpoint" "s3" {
 
 # ECR Interface endpoints. Off by default -- see create_ecr_vpc_endpoints.
 resource "aws_security_group" "vpc_endpoints" {
-  count  = var.create_ecr_vpc_endpoints ? 1 : 0
+  count  = var.create_ecr_vpc_endpoints || length(var.interface_vpc_endpoints) > 0 ? 1 : 0
   vpc_id = local.vpc_id
 
   ingress {
@@ -186,6 +186,31 @@ resource "aws_vpc_endpoint" "ecr" {
 
   # Without this the stock ECR hostnames keep resolving to public IPs and pulls
   # silently stay on NAT. Requires DNS hostnames and support on the VPC.
+  private_dns_enabled = true
+
+  tags = {
+    Name = "granica-vpc-${each.key}-endpoint"
+  }
+}
+
+# Generic AWS-service interface endpoints. Separate from the ECR pair above
+# because the driver is different: ECR is a NAT-cost optimisation, these are a
+# correctness requirement once VPC CNI NetworkPolicy is on. A NetworkPolicy
+# allowlist is IP-based, and the public addresses for STS (and the CP's ALB)
+# rotate, so there is no CIDR that stays correct -- an endpoint is what turns a
+# rotating public address into a stable in-VPC /32.
+resource "aws_vpc_endpoint" "interface" {
+  for_each = toset(var.interface_vpc_endpoints)
+
+  vpc_id            = local.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.${each.key}"
+  vpc_endpoint_type = "Interface"
+
+  subnet_ids         = local.private_subnet_ids
+  security_group_ids = [aws_security_group.vpc_endpoints[0].id]
+
+  # Without this the stock hostname keeps resolving to a public IP and the
+  # endpoint is inert. Requires DNS hostnames and support on the VPC.
   private_dns_enabled = true
 
   tags = {
