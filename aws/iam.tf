@@ -120,6 +120,14 @@ resource "aws_iam_policy" "efs" {
   policy = data.aws_iam_policy_document.efs.json
 }
 
+resource "aws_iam_policy" "remediation" {
+  count = !local.byo_admin_role && var.admin_remediation_enabled ? 1 : 0
+
+  name   = "${var.policy_name_prefix}project-n-admin-remediation-permissions-${random_id.random_suffix.hex}"
+  path   = var.policy_path
+  policy = data.aws_iam_policy_document.remediation.json
+}
+
 resource "aws_iam_role_policy_attachment" "admin-deploy" {
   count = local.byo_admin_role ? 0 : 1
 
@@ -145,6 +153,13 @@ resource "aws_iam_role_policy_attachment" "admin-efs" {
   count = !local.byo_admin_role && var.airflow_enabled && !var.serverless ? 1 : 0
 
   policy_arn = aws_iam_policy.efs[0].arn
+  role       = aws_iam_role.admin[0].name
+}
+
+resource "aws_iam_role_policy_attachment" "admin-remediation" {
+  count = !local.byo_admin_role && var.admin_remediation_enabled ? 1 : 0
+
+  policy_arn = aws_iam_policy.remediation[0].arn
   role       = aws_iam_role.admin[0].name
 }
 
@@ -530,5 +545,31 @@ data "aws_iam_policy_document" "efs" {
     resources = [
       "arn:aws:elasticfilesystem:*:*:file-system/*"
     ]
+  }
+}
+
+data "aws_iam_policy_document" "remediation" {
+  statement {
+    sid    = "LoadBalancerCleanup"
+    effect = "Allow"
+    actions = [
+      "elasticloadbalancing:DeleteListener",
+      "elasticloadbalancing:DeleteLoadBalancer",
+      "elasticloadbalancing:DeleteTargetGroup",
+      "elasticloadbalancing:DescribeListeners",
+      "elasticloadbalancing:DescribeLoadBalancers",
+      "elasticloadbalancing:DescribeTags",
+      "elasticloadbalancing:DescribeTargetGroups"
+    ]
+    resources = ["*"]
+  }
+
+  statement {
+    sid    = "InstanceMetadataOptions"
+    effect = "Allow"
+    actions = [
+      "ec2:ModifyInstanceMetadataOptions"
+    ]
+    resources = ["*"]
   }
 }

@@ -96,6 +96,19 @@ variable "create_ecr_vpc_endpoints" {
   EOT
 }
 
+variable "admin_remediation_enabled" {
+  type        = bool
+  default     = false
+  description = <<-EOT
+    Grant the admin role permission to clean up orphaned load balancers and to
+    change IMDS options on EC2 instances.
+
+    Off by default: neither is needed for a normal deploy or teardown. Enable
+    when the admin server has to delete an ELB left behind by a removed Service,
+    or enforce IMDSv2 on an instance the Terraform run does not own.
+  EOT
+}
+
 variable "instance_connect" {
   type        = string
   default     = ""
