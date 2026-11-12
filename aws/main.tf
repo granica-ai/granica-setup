@@ -92,10 +92,10 @@ check "existing_vpc_subnets" {
   assert {
     condition = (
       length(var.existing_vpc_id) == 0 ||
-      !var.create_ecr_vpc_endpoints ||
+      !(var.create_ecr_vpc_endpoints || length(var.interface_vpc_endpoints) > 0) ||
       (data.aws_vpc.existing[0].enable_dns_hostnames && data.aws_vpc.existing[0].enable_dns_support)
     )
-    error_message = "create_ecr_vpc_endpoints requires enableDnsHostnames and enableDnsSupport on the VPC; without both, private DNS does not take effect and image pulls stay on the NAT gateway."
+    error_message = "Interface endpoints require enableDnsHostnames and enableDnsSupport on the VPC; without both, private DNS does not take effect, image pulls stay on the NAT gateway and interface_vpc_endpoints services stay on their public endpoints."
   }
 }
 
@@ -107,6 +107,7 @@ locals {
   instance_connect_sg_id   = local.use_existing_eice_sg ? lower(local.instance_connect_trimmed) : null
   vpc_id                   = local.use_existing_vpc ? var.existing_vpc_id : module.vpc[0].vpc_id
   vpc_cidr_block           = local.use_existing_vpc ? data.aws_vpc.existing[0].cidr_block : module.vpc[0].vpc_cidr_block
+  vpc_cidr_blocks          = local.use_existing_vpc ? [for a in data.aws_vpc.existing[0].cidr_block_associations : a.cidr_block] : [module.vpc[0].vpc_cidr_block]
   private_subnet_ids       = local.use_existing_vpc ? var.existing_private_subnet_ids : module.vpc[0].private_subnets
   public_subnet_ids        = local.use_existing_vpc ? var.existing_public_subnet_ids : module.vpc[0].public_subnets
   route_table_ids          = local.use_existing_vpc ? data.aws_route_tables.existing[0].ids : concat(module.vpc[0].public_route_table_ids, module.vpc[0].private_route_table_ids)
@@ -159,14 +160,14 @@ resource "aws_vpc_endpoint" "s3" {
 
 # ECR Interface endpoints. Off by default -- see create_ecr_vpc_endpoints.
 resource "aws_security_group" "vpc_endpoints" {
-  count  = var.create_ecr_vpc_endpoints ? 1 : 0
+  count  = var.create_ecr_vpc_endpoints || length(var.interface_vpc_endpoints) > 0 ? 1 : 0
   vpc_id = local.vpc_id
 
   ingress {
     from_port   = 443
     to_port     = 443
     protocol    = "tcp"
-    cidr_blocks = [local.vpc_cidr_block]
+    cidr_blocks = local.vpc_cidr_blocks
   }
 
   tags = {
@@ -186,6 +187,31 @@ resource "aws_vpc_endpoint" "ecr" {
 
   # Without this the stock ECR hostnames keep resolving to public IPs and pulls
   # silently stay on NAT. Requires DNS hostnames and support on the VPC.
+  private_dns_enabled = true
+
+  tags = {
+    Name = "granica-vpc-${each.key}-endpoint"
+  }
+}
+
+# Generic AWS-service interface endpoints. Separate from the ECR pair above
+# because the driver is different: ECR is a NAT-cost optimisation, these are a
+# correctness requirement once VPC CNI NetworkPolicy is on. A NetworkPolicy
+# allowlist is IP-based, and the public addresses for STS (and the CP's ALB)
+# rotate, so there is no CIDR that stays correct -- an endpoint is what turns a
+# rotating public address into a stable in-VPC /32.
+resource "aws_vpc_endpoint" "interface" {
+  for_each = toset(var.interface_vpc_endpoints)
+
+  vpc_id            = local.vpc_id
+  service_name      = "com.amazonaws.${var.aws_region}.${each.key}"
+  vpc_endpoint_type = "Interface"
+
+  subnet_ids         = local.private_subnet_ids
+  security_group_ids = [aws_security_group.vpc_endpoints[0].id]
+
+  # Without this the stock hostname keeps resolving to a public IP and the
+  # endpoint is inert. Requires DNS hostnames and support on the VPC.
   private_dns_enabled = true
 
   tags = {

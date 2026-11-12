@@ -187,3 +187,42 @@ variable "custom_admin_instance_profile_name" {
   default     = ""
   description = "Name of a pre-existing instance profile (wrapping custom_admin_role_arn) attached to the admin server EC2 instance. Required when custom_admin_role_arn is set."
 }
+
+variable "interface_vpc_endpoints" {
+  type        = list(string)
+  default     = []
+  description = <<-EOT
+    AWS service short names to create Interface VPC endpoints for, e.g.
+    ["sts", "kms", "logs", "secretsmanager"]. Rendered as
+    com.amazonaws.<region>.<name> with private DNS enabled.
+
+    Empty (default) creates nothing; traffic to these services continues to
+    leave over NAT to public addresses.
+
+    "sts" is effectively REQUIRED before enabling VPC CNI NetworkPolicy. A
+    NetworkPolicy allowlist matches on destination IP, and the public STS
+    address rotates (observed 44.248.101.11 -> 44.248.101.77 minutes apart), so
+    no CIDR stays correct. Without the endpoint, IRSA credential refresh is
+    denied and every pod loses its AWS credentials at expiry (~1h) -- after a
+    deploy that reported success, because credentials are cached.
+
+    Create these BEFORE the cluster's first `granica deploy`. Adding one to an
+    existing deployment re-applies this stack, which does not know about the
+    subnet tags krypton adds and will remove them (Tier, and
+    kubernetes.io/cluster/<name>); -target does not protect you, because
+    aws_vpc_endpoint.subnet_ids makes the subnets a dependency of the target.
+    Snapshot the tags first and restore with `aws ec2 create-tags` if so.
+
+    ECR has its own flag (create_ecr_vpc_endpoints) and is not repeated here.
+  EOT
+
+  validation {
+    condition     = !contains(var.interface_vpc_endpoints, "s3")
+    error_message = "S3 must use the Gateway endpoint (create_s3_vpc_endpoint), not an Interface endpoint."
+  }
+
+  validation {
+    condition     = length(setintersection(toset(var.interface_vpc_endpoints), toset(["ecr.api", "ecr.dkr"]))) == 0
+    error_message = "Use create_ecr_vpc_endpoints for ECR; listing it here would create a duplicate endpoint."
+  }
+}
